@@ -57,6 +57,27 @@ src/
   types/
 ```
 
+## Release (Android APK)
+
+Tag a version matching `app.json` → CI builds an APK on EAS and attaches it to a GitHub Release.
+
+1. Bump `version` in `app.json` and `package.json`
+2. One-time: add repo secret `EXPO_TOKEN` ([Expo access token](https://expo.dev/settings/access-tokens))
+3. One-time (local, creates Android keystore on EAS if missing):
+
+```bash
+bunx eas-cli build -p android --profile production
+```
+
+4. Tag and push the tag (not done by CI for you):
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml). Download the APK from the Releases page.
+
 ## License
 
 [MIT](LICENSE) © 2026 AetherAllan

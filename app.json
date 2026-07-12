@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "ArxivTok",
-    "slug": "ArxivTok",
+    "slug": "arxivtok",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/AndroidLogo.png",
@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.arxivtok.app",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#0B1426",
         "foregroundImage": "./assets/AndroidLogo.png"
@@ -24,6 +25,11 @@
     },
     "plugins": [
       "expo-localization"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b5e2b924-3183-4279-ab5f-ada043a30884"
+      }
+    }
   }
 }
