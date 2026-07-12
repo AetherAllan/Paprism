@@ -9,13 +9,13 @@ import {
   StorageAccessFramework,
   writeAsStringAsync,
 } from "expo-file-system/legacy";
-import { scheduleArxiv } from "./arxiv";
+import { scheduleArxiv } from "@/lib/arxiv";
+import type { Paper } from "@/types/paper";
 import {
   getDownloadsDirUri,
   setDownloadsDirUri,
   type DownloadEntry,
 } from "./library";
-import type { Paper } from "../types/paper";
 
 function appDownloadsDir(): string {
   if (!documentDirectory) {

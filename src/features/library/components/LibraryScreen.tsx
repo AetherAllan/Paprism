@@ -10,12 +10,12 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { Paper } from "@/types/paper";
 import type {
   DownloadEntry,
   HistoryEntry,
   SavedEntry,
-} from "../lib/library";
-import type { Paper } from "../types/paper";
+} from "../library";
 
 type Tab = "saved" | "history" | "downloads";
 

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchPaperPage } from "../lib/arxiv";
-import { normalizeCategories } from "../lib/categories";
-import i18n from "../i18n";
-import type { Paper } from "../types/paper";
+import { normalizeCategories } from "@/lib/categories";
+import { fetchPaperPage } from "@/lib/arxiv";
+import i18n from "@/i18n";
+import type { Paper } from "@/types/paper";
 
 /** How many papers per arXiv request. */
 const PAGE_SIZE = 30;

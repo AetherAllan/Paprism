@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Paper } from "../types/paper";
-import { downloadPaperPdf } from "../lib/downloads";
+import type { Paper } from "@/types/paper";
+import { downloadPaperPdf } from "../downloads";
 import {
   loadDownloads,
   loadHistory,
@@ -15,7 +15,7 @@ import {
   type DownloadEntry,
   type HistoryEntry,
   type SavedEntry,
-} from "../lib/library";
+} from "../library";
 
 export function useLibrary() {
   const [saved, setSaved] = useState<SavedEntry[]>([]);

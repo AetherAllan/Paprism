@@ -15,8 +15,8 @@ import Animated, {
   useSharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { Paper } from "../types/paper";
-import { categoriesSummary } from "../lib/categoryLabels";
+import { categoriesSummary } from "@/features/categories/categoryLabels";
+import type { Paper } from "@/types/paper";
 import { LoadingScreen } from "./LoadingScreen";
 import { PaperCard } from "./PaperCard";
 

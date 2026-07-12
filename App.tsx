@@ -1,40 +1,33 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Alert, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { I18nextProvider, useTranslation } from "react-i18next";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { CategoryPicker } from "./src/components/CategoryPicker";
-import { LibraryScreen } from "./src/components/LibraryScreen";
-import { LoadingScreen } from "./src/components/LoadingScreen";
-import { PaperFeed } from "./src/components/PaperFeed";
-import { PaperViewer } from "./src/components/PaperViewer";
-import { SettingsScreen } from "./src/components/SettingsScreen";
-import { useLibrary } from "./src/hooks/useLibrary";
-import { usePaperFeed } from "./src/hooks/usePaperFeed";
-import i18n, { resolveUiLang, type UiLangPref } from "./src/i18n";
-import {
-  DEFAULT_PREFS,
-  loadPrefs,
-  resetPrefs,
-  saveCategories,
-  saveTranslateLang,
-  saveUiLang,
-  type AppPrefs,
-  type TranslateLangPref,
-} from "./src/lib/storage";
-import type { Paper } from "./src/types/paper";
+import { CategoryPicker } from "@/features/categories";
+import { LoadingScreen, PaperFeed, usePaperFeed } from "@/features/feed";
+import { LibraryScreen, useLibrary } from "@/features/library";
+import { SettingsScreen } from "@/features/settings";
+import { PaperViewer } from "@/features/viewer";
+import i18n from "@/i18n";
+import { useAppPrefs } from "@/shared/hooks/useAppPrefs";
+import type { Paper } from "@/types/paper";
 
 function AppInner() {
   const { t } = useTranslation();
-  const [ready, setReady] = useState(false);
-  const [prefs, setPrefs] = useState<AppPrefs>(DEFAULT_PREFS);
+  const {
+    ready: prefsReady,
+    prefs,
+    setCategories,
+    setTranslateLang,
+    setUiLang,
+    reset,
+  } = useAppPrefs();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [viewerPaper, setViewerPaper] = useState<Paper | null>(null);
 
-  const library = useLibrary();
   const {
     ready: libraryReady,
     saved,
@@ -48,23 +41,8 @@ function AppInner() {
     recordHistory,
     clearHistory,
     download,
-  } = library;
+  } = useLibrary();
   const feed = usePaperFeed(prefs.categories);
-
-  useEffect(() => {
-    let cancelled = false;
-    loadPrefs().then(async (loaded) => {
-      if (cancelled) return;
-      const lng = resolveUiLang(loaded.uiLang);
-      await i18n.changeLanguage(lng);
-      if (cancelled) return;
-      setPrefs(loaded);
-      setReady(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const openPaper = useCallback(
     (paper: Paper) => {
@@ -88,29 +66,7 @@ function AppInner() {
     [download, t],
   );
 
-  const onSelectCategories = useCallback((ids: string[]) => {
-    setPrefs((p) => ({ ...p, categories: ids }));
-    void saveCategories(ids);
-  }, []);
-
-  const onTranslateLangChange = useCallback((lang: TranslateLangPref) => {
-    setPrefs((p) => ({ ...p, translateLang: lang }));
-    void saveTranslateLang(lang);
-  }, []);
-
-  const onUiLangChange = useCallback(async (lang: UiLangPref) => {
-    setPrefs((p) => ({ ...p, uiLang: lang }));
-    void saveUiLang(lang);
-    await i18n.changeLanguage(resolveUiLang(lang));
-  }, []);
-
-  const onReset = useCallback(async () => {
-    const next = await resetPrefs();
-    setPrefs(next);
-    await i18n.changeLanguage(resolveUiLang(next.uiLang));
-  }, []);
-
-  if (!ready || !libraryReady) {
+  if (!prefsReady || !libraryReady) {
     return (
       <SafeAreaProvider>
         <GestureHandlerRootView style={styles.root}>
@@ -145,7 +101,7 @@ function AppInner() {
         <CategoryPicker
           visible={pickerOpen}
           selected={prefs.categories}
-          onSelect={onSelectCategories}
+          onSelect={setCategories}
           onClose={() => setPickerOpen(false)}
         />
         <LibraryScreen
@@ -166,9 +122,9 @@ function AppInner() {
           visible={settingsOpen}
           uiLang={prefs.uiLang}
           translateLang={prefs.translateLang}
-          onUiLangChange={onUiLangChange}
-          onTranslateLangChange={onTranslateLangChange}
-          onReset={onReset}
+          onUiLangChange={setUiLang}
+          onTranslateLangChange={setTranslateLang}
+          onReset={reset}
           onClose={() => setSettingsOpen(false)}
         />
         <PaperViewer

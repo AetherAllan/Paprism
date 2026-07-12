@@ -10,11 +10,11 @@ import {
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
-import type { Paper } from "../types/paper";
 import {
   resolveTranslateLang,
   type TranslateLangPref,
-} from "../lib/storage";
+} from "@/lib/storage";
+import type { Paper } from "@/types/paper";
 
 type Props = {
   paper: Paper | null;

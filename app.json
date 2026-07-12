@@ -4,24 +4,26 @@
     "slug": "ArxivTok",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/AndroidLogo.png",
     "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/AndroidLogo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B1426"
+    },
     "android": {
       "package": "com.arxivtok.app",
       "adaptiveIcon": {
-        "backgroundColor": "#111113",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#0B1426",
+        "foregroundImage": "./assets/AndroidLogo.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/AndroidLogo.png"
     },
     "plugins": [
-      "expo-localization",
-      "expo-sharing"
+      "expo-localization"
     ]
   }
 }

@@ -1,8 +1,8 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { UiLangPref } from "../i18n";
-import type { TranslateLangPref } from "../lib/storage";
+import type { UiLangPref } from "@/i18n";
+import type { TranslateLangPref } from "@/lib/storage";
 
 const TRANSLATE_OPTION_IDS: TranslateLangPref[] = [
   "system",

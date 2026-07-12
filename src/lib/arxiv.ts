@@ -1,6 +1,6 @@
 import type { Paper } from "../types/paper";
 import { RateLimiter } from "./rateLimiter";
-import { categoriesToSearchQuery } from "./categories";
+import { categoriesToSearchQuery } from "@/lib/categories";
 
 const BASE = "https://export.arxiv.org/api/query";
 /** Official ToU: no more than one request every three seconds. */

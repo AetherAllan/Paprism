@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import type { Paper } from "../types/paper";
+import type { Paper } from "@/types/paper";
 
 type Props = {
   paper: Paper;

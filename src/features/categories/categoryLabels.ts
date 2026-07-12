@@ -1,9 +1,9 @@
-import i18n from "../i18n";
+import i18n from "@/i18n";
 import {
   DEFAULT_CATEGORY,
   FEED_CATEGORIES,
   normalizeCategories,
-} from "./categories";
+} from "@/lib/categories";
 
 export function categoryLabel(id: string): string {
   const fallback = FEED_CATEGORIES.find((c) => c.id === id)?.label ?? id;

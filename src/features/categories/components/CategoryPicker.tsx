@@ -11,15 +11,15 @@ import {
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  categoryGroupLabel,
-  categoryLabel,
-} from "../lib/categoryLabels";
-import {
   DEFAULT_CATEGORIES,
   FEED_CATEGORIES,
   normalizeCategories,
   type CategoryOption,
-} from "../lib/categories";
+} from "@/lib/categories";
+import {
+  categoryGroupLabel,
+  categoryLabel,
+} from "../categoryLabels";
 
 type Props = {
   visible: boolean;

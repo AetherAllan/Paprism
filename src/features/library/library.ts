@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { Paper } from "../types/paper";
+import type { Paper } from "@/types/paper";
 
 const KEYS = {
   saved: "arxivtok.saved",
