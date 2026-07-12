@@ -11,6 +11,7 @@ import { usePaperFeed } from "@/features/feed/usePaperFeed";
 import { LibraryScreen } from "@/features/library/LibraryScreen";
 import { useLibrary } from "@/features/library/useLibrary";
 import { SettingsScreen } from "@/features/settings/SettingsScreen";
+import { useProviderProfiles } from "@/features/settings/useProviderProfiles";
 import { PaperViewer } from "@/features/viewer/PaperViewer";
 import { useAppPrefs } from "@/shared/useAppPrefs";
 import type { Paper } from "@/types/paper";
@@ -32,6 +33,7 @@ export default function App() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [viewer, setViewer] = useState<ViewerState | null>(null);
+  const providerManager = useProviderProfiles();
 
   const {
     ready: libraryReady,
@@ -113,7 +115,7 @@ export default function App() {
     [openPdf, showError],
   );
 
-  if (!prefsReady || !libraryReady) {
+  if (!prefsReady || !libraryReady || !providerManager.ready) {
     return (
       <SafeAreaProvider>
         <GestureHandlerRootView style={styles.root}>
@@ -182,6 +184,7 @@ export default function App() {
           onTranslateLangChange={setTranslateLang}
           onReset={reset}
           onClose={() => setSettingsOpen(false)}
+          providerManager={providerManager}
         />
         <PaperViewer
           paper={viewer?.paper ?? null}

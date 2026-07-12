@@ -81,5 +81,29 @@
     "removeDownloads": "Delete downloads",
     "removeDownloadsBody": "This removes the offline HTML and app-local PDF for this paper.",
     "openPdf": "Open PDF"
+  },
+  "provider": {
+    "title": "Translation providers",
+    "hint": "Keys stay in encrypted device storage and are sent only to the selected HTTPS provider.",
+    "compatible": "Compatible API",
+    "noModel": "No model selected",
+    "edit": "Edit",
+    "editTitle": "Provider profile",
+    "name": "Profile name",
+    "kind": "Protocol",
+    "endpoint": "API base URL",
+    "apiKey": "API key",
+    "keyPlaceholder": "Leave blank to keep the saved key",
+    "model": "Model name",
+    "testAndLoad": "Test connection & load models",
+    "loadingModels": "Loading models…",
+    "searchModels": "Search models",
+    "connectionOk": "Connection succeeded",
+    "connectionFailed": "Connection failed",
+    "modelsFound": "Found {{count}} models.",
+    "keyRequired": "API key is required",
+    "saveFailed": "Could not save provider",
+    "delete": "Delete profile",
+    "deleteTitle": "Delete provider profile?"
   }
 }

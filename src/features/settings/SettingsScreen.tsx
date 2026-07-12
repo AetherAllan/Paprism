@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { UiLangPref } from "@/i18n";
 import type { TranslateLangPref } from "@/lib/storage";
+import { ProviderSettings } from "./ProviderSettings";
+import type { useProviderProfiles } from "./useProviderProfiles";
 
 const TRANSLATE_OPTIONS: { id: TranslateLangPref; labelKey: string }[] = [
   { id: "system", labelKey: "settings.tlSystem" },
@@ -34,6 +36,7 @@ type Props = {
   onTranslateLangChange: (lang: TranslateLangPref) => void;
   onReset: () => void;
   onClose: () => void;
+  providerManager: ReturnType<typeof useProviderProfiles>;
 };
 
 export function SettingsScreen({
@@ -44,6 +47,7 @@ export function SettingsScreen({
   onTranslateLangChange,
   onReset,
   onClose,
+  providerManager,
 }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -107,6 +111,8 @@ export function SettingsScreen({
               </Pressable>
             );
           })}
+
+          <ProviderSettings manager={providerManager} />
 
           <Text style={[styles.section, styles.sectionSpaced]}>
             {t("settings.about")}
