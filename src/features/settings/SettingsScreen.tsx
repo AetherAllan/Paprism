@@ -4,37 +4,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { UiLangPref } from "@/i18n";
 import type { TranslateLangPref } from "@/lib/storage";
 
-const TRANSLATE_OPTION_IDS: TranslateLangPref[] = [
-  "system",
-  "en",
-  "zh-CN",
-  "zh-TW",
-  "ja",
-  "ko",
-  "es",
-  "fr",
-  "de",
-  "pt",
-  "ru",
-  "ar",
-  "hi",
+const TRANSLATE_OPTIONS: { id: TranslateLangPref; labelKey: string }[] = [
+  { id: "system", labelKey: "settings.tlSystem" },
+  { id: "en", labelKey: "settings.tlEn" },
+  { id: "zh-CN", labelKey: "settings.tlZhCN" },
+  { id: "zh-TW", labelKey: "settings.tlZhTW" },
+  { id: "ja", labelKey: "settings.tlJa" },
+  { id: "ko", labelKey: "settings.tlKo" },
+  { id: "es", labelKey: "settings.tlEs" },
+  { id: "fr", labelKey: "settings.tlFr" },
+  { id: "de", labelKey: "settings.tlDe" },
+  { id: "pt", labelKey: "settings.tlPt" },
+  { id: "ru", labelKey: "settings.tlRu" },
+  { id: "ar", labelKey: "settings.tlAr" },
+  { id: "hi", labelKey: "settings.tlHi" },
 ];
-
-const TRANSLATE_LABEL_KEYS: Record<string, string> = {
-  system: "settings.tlSystem",
-  en: "settings.tlEn",
-  "zh-CN": "settings.tlZhCN",
-  "zh-TW": "settings.tlZhTW",
-  ja: "settings.tlJa",
-  ko: "settings.tlKo",
-  es: "settings.tlEs",
-  fr: "settings.tlFr",
-  de: "settings.tlDe",
-  pt: "settings.tlPt",
-  ru: "settings.tlRu",
-  ar: "settings.tlAr",
-  hi: "settings.tlHi",
-};
 
 const UI_LANG_OPTIONS: { id: UiLangPref; labelKey: string }[] = [
   { id: "system", labelKey: "settings.langSystem" },
@@ -108,16 +92,16 @@ export function SettingsScreen({
             {t("settings.translationLanguage")}
           </Text>
           <Text style={styles.hint}>{t("settings.translationHint")}</Text>
-          {TRANSLATE_OPTION_IDS.map((id) => {
-            const active = id === translateLang;
+          {TRANSLATE_OPTIONS.map((option) => {
+            const active = option.id === translateLang;
             return (
               <Pressable
-                key={id}
-                onPress={() => onTranslateLangChange(id)}
+                key={option.id}
+                onPress={() => onTranslateLangChange(option.id)}
                 style={[styles.row, active && styles.rowActive]}
               >
                 <Text style={styles.rowLabel}>
-                  {t(TRANSLATE_LABEL_KEYS[id])}
+                  {t(option.labelKey)}
                 </Text>
                 {active ? <Text style={styles.check}>✓</Text> : null}
               </Pressable>

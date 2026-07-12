@@ -105,7 +105,6 @@ function parseEntry(entry: string): Paper | null {
   }
 
   return {
-    id: arxivId,
     arxivId,
     title,
     abstract,
@@ -113,7 +112,6 @@ function parseEntry(entry: string): Paper | null {
     categories,
     published,
     updated,
-    absUrl: `https://arxiv.org/abs/${arxivId}`,
     pdfUrl: `https://export.arxiv.org/pdf/${arxivId}`,
   };
 }

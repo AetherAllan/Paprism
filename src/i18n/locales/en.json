@@ -19,7 +19,10 @@
     "selectedChange": "{{count}} selected · Change",
     "loadFeedFailed": "Couldn't load feed",
     "unknownError": "Unknown error",
-    "failedLoadPapers": "Failed to load papers"
+    "failedLoadPapers": "Failed to load papers",
+    "loadingMore": "Loading more…",
+    "retryMore": "Retry loading",
+    "endOfFeed": "You're all caught up"
   },
   "categories": {
     "title": "Categories",

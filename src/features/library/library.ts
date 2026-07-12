@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { enqueueStorageWrite } from "@/lib/storageQueue";
 import type { Paper } from "@/types/paper";
 
 const KEYS = {
@@ -30,7 +31,9 @@ async function readJson<T>(key: string, fallback: T): Promise<T> {
 }
 
 async function writeJson(key: string, value: unknown): Promise<void> {
-  await AsyncStorage.setItem(key, JSON.stringify(value));
+  await enqueueStorageWrite(() =>
+    AsyncStorage.setItem(key, JSON.stringify(value)),
+  );
 }
 
 export async function loadSaved(): Promise<SavedEntry[]> {
@@ -50,7 +53,6 @@ function coerceDownload(raw: Record<string, unknown>): DownloadEntry | null {
     ? raw.authors.filter((a): a is string => typeof a === "string")
     : [];
   return {
-    id: typeof raw.id === "string" ? raw.id : `http://arxiv.org/abs/${arxivId}`,
     arxivId,
     title,
     abstract: typeof raw.abstract === "string" ? raw.abstract : "",
@@ -60,10 +62,6 @@ function coerceDownload(raw: Record<string, unknown>): DownloadEntry | null {
       : [],
     published: typeof raw.published === "string" ? raw.published : "",
     updated: typeof raw.updated === "string" ? raw.updated : "",
-    absUrl:
-      typeof raw.absUrl === "string"
-        ? raw.absUrl
-        : `https://arxiv.org/abs/${arxivId}`,
     pdfUrl:
       typeof raw.pdfUrl === "string"
         ? raw.pdfUrl
@@ -122,5 +120,7 @@ export async function getDownloadsDirUri(): Promise<string | null> {
 }
 
 export async function setDownloadsDirUri(uri: string): Promise<void> {
-  await AsyncStorage.setItem(KEYS.downloadsDirUri, uri);
+  await enqueueStorageWrite(() =>
+    AsyncStorage.setItem(KEYS.downloadsDirUri, uri),
+  );
 }

@@ -47,6 +47,13 @@ export function LibraryScreen({
   const [tab, setTab] = useState<Tab>("saved");
 
   const locale = i18n.language === "zh" ? "zh-CN" : "en";
+  const items = tab === "saved" ? saved : tab === "history" ? history : downloads;
+  const emptyText =
+    tab === "saved"
+      ? t("library.emptySaved")
+      : tab === "history"
+        ? t("library.emptyHistory")
+        : t("library.emptyDownloads");
 
   const confirmClear = () => {
     Alert.alert(t("library.clearHistoryTitle"), t("library.clearHistoryBody"), [
@@ -109,52 +116,23 @@ export function LibraryScreen({
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
         >
-          {tab === "saved" &&
-            (saved.length === 0 ? (
-              <Text style={styles.empty}>{t("library.emptySaved")}</Text>
-            ) : (
-              saved.map((item) => (
-                <Row
-                  key={item.arxivId}
-                  title={item.title}
-                  subtitle={item.authors.slice(0, 2).join(", ")}
-                  meta={formatTime(item.savedAt, locale)}
-                  onPress={() => onOpenPaper(item)}
-                  actionLabel={t("library.unsave")}
-                  onAction={() => onUnsave(item.arxivId)}
-                />
-              ))
-            ))}
-
-          {tab === "history" &&
-            (history.length === 0 ? (
-              <Text style={styles.empty}>{t("library.emptyHistory")}</Text>
-            ) : (
-              history.map((item) => (
-                <Row
-                  key={`${item.arxivId}-${item.viewedAt}`}
-                  title={item.title}
-                  subtitle={item.authors.slice(0, 2).join(", ")}
-                  meta={formatTime(item.viewedAt, locale)}
-                  onPress={() => onOpenPaper(item)}
-                />
-              ))
-            ))}
-
-          {tab === "downloads" &&
-            (downloads.length === 0 ? (
-              <Text style={styles.empty}>{t("library.emptyDownloads")}</Text>
-            ) : (
-              downloads.map((item) => (
-                <Row
-                  key={item.arxivId}
-                  title={item.title}
-                  subtitle={item.authors.slice(0, 2).join(", ")}
-                  meta={formatTime(item.downloadedAt, locale)}
-                  onPress={() => onOpenPaper(item)}
-                />
-              ))
-            ))}
+          {items.length === 0 ? (
+            <Text style={styles.empty}>{emptyText}</Text>
+          ) : (
+            items.map((item) => (
+              <Row
+                key={item.arxivId}
+                title={item.title}
+                subtitle={item.authors.slice(0, 2).join(", ")}
+                meta={formatTime(entryTime(item), locale)}
+                onPress={() => onOpenPaper(item)}
+                actionLabel={tab === "saved" ? t("library.unsave") : undefined}
+                onAction={
+                  tab === "saved" ? () => onUnsave(item.arxivId) : undefined
+                }
+              />
+            ))
+          )}
         </ScrollView>
 
         <Pressable
@@ -169,6 +147,12 @@ export function LibraryScreen({
       </View>
     </Modal>
   );
+}
+
+function entryTime(item: SavedEntry | HistoryEntry | DownloadEntry): number {
+  if ("savedAt" in item) return item.savedAt;
+  if ("viewedAt" in item) return item.viewedAt;
+  return item.downloadedAt;
 }
 
 function Row({

@@ -19,7 +19,10 @@
     "selectedChange": "已选 {{count}} 项 · 更换",
     "loadFeedFailed": "无法加载信息流",
     "unknownError": "未知错误",
-    "failedLoadPapers": "加载论文失败"
+    "failedLoadPapers": "加载论文失败",
+    "loadingMore": "正在加载更多…",
+    "retryMore": "重试加载",
+    "endOfFeed": "已经看完了"
   },
   "categories": {
     "title": "类别",

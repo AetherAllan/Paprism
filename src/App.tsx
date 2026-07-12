@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { Alert, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { I18nextProvider, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { CategoryPicker } from "@/features/categories/CategoryPicker";
 import { LoadingScreen } from "@/features/feed/LoadingScreen";
@@ -12,11 +12,10 @@ import { LibraryScreen } from "@/features/library/LibraryScreen";
 import { useLibrary } from "@/features/library/useLibrary";
 import { SettingsScreen } from "@/features/settings/SettingsScreen";
 import { PaperViewer } from "@/features/viewer/PaperViewer";
-import i18n from "@/i18n";
 import { useAppPrefs } from "@/shared/useAppPrefs";
 import type { Paper } from "@/types/paper";
 
-function AppInner() {
+export default function App() {
   const { t } = useTranslation();
   const {
     ready: prefsReady,
@@ -90,6 +89,8 @@ function AppInner() {
           onIndexChange={feed.onIndexChange}
           status={feed.status}
           error={feed.error}
+          paginationStatus={feed.paginationStatus}
+          paginationError={feed.paginationError}
           onRetry={feed.retry}
           categories={prefs.categories}
           onOpenCategories={() => setPickerOpen(true)}
@@ -137,14 +138,6 @@ function AppInner() {
         />
       </GestureHandlerRootView>
     </SafeAreaProvider>
-  );
-}
-
-export default function App() {
-  return (
-    <I18nextProvider i18n={i18n}>
-      <AppInner />
-    </I18nextProvider>
   );
 }
 

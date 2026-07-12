@@ -13,6 +13,7 @@ const PAGE_SIZE = 30;
 const PREFETCH_AHEAD = 12;
 
 type Status = "idle" | "loading" | "ready" | "error";
+export type PaginationStatus = "idle" | "loading" | "error" | "exhausted";
 
 function catsKey(cats: string[]): string {
   return normalizeCategories(cats).slice().sort().join("|");
@@ -23,7 +24,9 @@ export function usePaperFeed(categories: string[]) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
-  const [prefetching, setPrefetching] = useState(false);
+  const [paginationStatus, setPaginationStatus] =
+    useState<PaginationStatus>("idle");
+  const [paginationError, setPaginationError] = useState<string | null>(null);
 
   const nextStart = useRef(0);
   const total = useRef<number | null>(null);
@@ -50,9 +53,11 @@ export function usePaperFeed(categories: string[]) {
 
     const gen = generation.current;
     inFlight.current = true;
-    setPrefetching(true);
     if (isReset || papersLen.current === 0) {
       setStatus("loading");
+    } else {
+      setPaginationStatus("loading");
+      setPaginationError(null);
     }
     setError(null);
 
@@ -70,23 +75,37 @@ export function usePaperFeed(categories: string[]) {
       nextStart.current = start + page.papers.length;
 
       const fresh = page.papers.filter((p) => {
-        if (seenIds.current.has(p.id)) return false;
-        seenIds.current.add(p.id);
+        if (seenIds.current.has(p.arxivId)) return false;
+        seenIds.current.add(p.arxivId);
         return true;
       });
 
+      // Keep the ref authoritative between two awaited page loads. React may
+      // not have committed the state update before the next request starts.
+      papersLen.current = isReset
+        ? fresh.length
+        : papersLen.current + fresh.length;
       setPapers((prev) => (isReset ? fresh : [...prev, ...fresh]));
       setStatus("ready");
+      setPaginationStatus(
+        nextStart.current >= page.total || page.papers.length === 0
+          ? "exhausted"
+          : "idle",
+      );
     } catch (e) {
       if (gen !== generation.current) return;
       const msg =
         e instanceof Error ? e.message : i18n.t("common.failedLoadPapers");
-      setError(msg);
-      setStatus((s) => (s === "ready" ? "ready" : "error"));
+      if (papersLen.current === 0) {
+        setError(msg);
+        setStatus("error");
+      } else {
+        setPaginationError(msg);
+        setPaginationStatus("error");
+      }
     } finally {
       if (gen === generation.current) {
         inFlight.current = false;
-        setPrefetching(false);
       }
     }
   }, []);
@@ -102,7 +121,8 @@ export function usePaperFeed(categories: string[]) {
     setPapers([]);
     setIndex(0);
     setStatus("idle");
-    setPrefetching(false);
+    setPaginationStatus("idle");
+    setPaginationError(null);
 
     let cancelled = false;
     (async () => {
@@ -141,10 +161,11 @@ export function usePaperFeed(categories: string[]) {
     status,
     error,
     index,
-    prefetching,
+    paginationStatus,
+    paginationError,
+    prefetching: paginationStatus === "loading",
     onIndexChange,
     retry,
-    hasMore:
-      total.current === null || nextStart.current < (total.current ?? 0),
+    hasMore: paginationStatus !== "exhausted",
   };
 }

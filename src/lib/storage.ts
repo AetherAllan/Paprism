@@ -4,6 +4,7 @@ import {
   DEFAULT_CATEGORIES,
   normalizeCategories,
 } from "./categories";
+import { enqueueStorageWrite } from "./storageQueue";
 
 const KEYS = {
   categories: "arxivtok.lastCategories",
@@ -49,8 +50,10 @@ async function loadCategories(): Promise<string[]> {
   const legacy = await AsyncStorage.getItem(KEYS.category);
   if (legacy) {
     const cats = normalizeCategories([legacy]);
-    await AsyncStorage.setItem(KEYS.categories, JSON.stringify(cats));
-    await AsyncStorage.removeItem(KEYS.category);
+    await enqueueStorageWrite(async () => {
+      await AsyncStorage.setItem(KEYS.categories, JSON.stringify(cats));
+      await AsyncStorage.removeItem(KEYS.category);
+    });
     return cats;
   }
 
@@ -74,24 +77,28 @@ export async function loadPrefs(): Promise<AppPrefs> {
 
 export async function saveCategories(ids: string[]): Promise<void> {
   const cats = normalizeCategories(ids);
-  await AsyncStorage.setItem(KEYS.categories, JSON.stringify(cats));
+  await enqueueStorageWrite(() =>
+    AsyncStorage.setItem(KEYS.categories, JSON.stringify(cats)),
+  );
 }
 
 export async function saveTranslateLang(lang: TranslateLangPref): Promise<void> {
-  await AsyncStorage.setItem(KEYS.translateLang, lang);
+  await enqueueStorageWrite(() => AsyncStorage.setItem(KEYS.translateLang, lang));
 }
 
 export async function saveUiLang(lang: UiLangPref): Promise<void> {
-  await AsyncStorage.setItem(KEYS.uiLang, lang);
+  await enqueueStorageWrite(() => AsyncStorage.setItem(KEYS.uiLang, lang));
 }
 
 export async function resetPrefs(): Promise<AppPrefs> {
-  await AsyncStorage.multiRemove([
-    KEYS.categories,
-    KEYS.category,
-    KEYS.translateLang,
-    KEYS.uiLang,
-  ]);
+  await enqueueStorageWrite(() =>
+    AsyncStorage.multiRemove([
+      KEYS.categories,
+      KEYS.category,
+      KEYS.translateLang,
+      KEYS.uiLang,
+    ]),
+  );
   return {
     categories: [...DEFAULT_CATEGORIES],
     translateLang: "system",

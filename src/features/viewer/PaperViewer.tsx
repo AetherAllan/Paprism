@@ -43,7 +43,7 @@ export function PaperViewer({ paper, translateLangPref, onClose }: Props) {
     if (!paper) return;
     setTranslated(false);
     setLoading(true);
-  }, [paper?.id]);
+  }, [paper?.arxivId]);
 
   const uri = paper ? paperUri(paper.arxivId, translated, tl) : null;
 

@@ -6,7 +6,6 @@ import {
   useWindowDimensions,
   View,
   type LayoutChangeEvent,
-  type ViewToken,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import Animated, {
@@ -19,6 +18,7 @@ import { categoriesSummary } from "@/features/categories/categoryLabels";
 import type { Paper } from "@/types/paper";
 import { LoadingScreen } from "./LoadingScreen";
 import { PaperCard } from "./PaperCard";
+import type { PaginationStatus } from "./usePaperFeed";
 
 type Props = {
   papers: Paper[];
@@ -26,6 +26,8 @@ type Props = {
   onIndexChange: (index: number) => void;
   status: "idle" | "loading" | "ready" | "error";
   error: string | null;
+  paginationStatus: PaginationStatus;
+  paginationError: string | null;
   onRetry: () => void;
   categories: string[];
   onOpenCategories: () => void;
@@ -44,6 +46,8 @@ export function PaperFeed({
   onIndexChange,
   status,
   error,
+  paginationStatus,
+  paginationError,
   onRetry,
   categories,
   onOpenCategories,
@@ -85,16 +89,6 @@ export function PaperFeed({
     [pageHeight],
   );
 
-  const onViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      const first = viewableItems[0];
-      if (first?.index != null) {
-        onIndexChange(first.index);
-      }
-    },
-    [onIndexChange],
-  );
-
   if (status === "loading" && papers.length === 0) {
     return <LoadingScreen />;
   }
@@ -133,6 +127,15 @@ export function PaperFeed({
           <Text style={styles.counter}>
             {papers.length === 0 ? "—" : `${index + 1} / ${papers.length}`}
           </Text>
+          {paginationStatus === "loading" ? (
+            <Text style={styles.pageStatus}>{t("common.loadingMore")}</Text>
+          ) : paginationStatus === "error" ? (
+            <Pressable onPress={onRetry} hitSlop={8} accessibilityHint={paginationError ?? undefined}>
+              <Text style={styles.pageError}>{t("common.retryMore")}</Text>
+            </Pressable>
+          ) : paginationStatus === "exhausted" ? (
+            <Text style={styles.pageStatus}>{t("common.endOfFeed")}</Text>
+          ) : null}
           <Pressable onPress={onOpenLibrary} hitSlop={8}>
             <Text style={styles.settings}>{t("library.title")}</Text>
           </Pressable>
@@ -142,7 +145,7 @@ export function PaperFeed({
       <Animated.FlatList
         key={`${categories.slice().sort().join("|")}-${pageHeight}-${i18n.language}`}
         data={papers}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.arxivId}
         renderItem={({ item }) => (
           <PaperCard
             paper={item}
@@ -165,8 +168,6 @@ export function PaperFeed({
         getItemLayout={getItemLayout}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 55 }}
         windowSize={5}
         maxToRenderPerBatch={3}
         initialNumToRender={2}
@@ -214,6 +215,15 @@ const styles = StyleSheet.create({
     color: "#a1a1aa",
     fontSize: 13,
     fontVariant: ["tabular-nums"],
+  },
+  pageStatus: {
+    color: "#71717a",
+    fontSize: 11,
+  },
+  pageError: {
+    color: "#f87171",
+    fontSize: 11,
+    fontWeight: "600",
   },
   settings: {
     color: "#a1a1aa",
