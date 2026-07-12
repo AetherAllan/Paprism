@@ -37,8 +37,10 @@ type Props = {
   hasOfflineHtml: (arxivId: string) => boolean;
   hasPdf: (arxivId: string) => boolean;
   downloadingId: string | null;
+  canCancelDownload: boolean;
   onToggleSave: (paper: Paper) => void;
   onDownload: (paper: Paper) => void;
+  onCancelDownload: () => void;
 };
 
 export function PaperFeed({
@@ -58,8 +60,10 @@ export function PaperFeed({
   hasOfflineHtml,
   hasPdf,
   downloadingId,
+  canCancelDownload,
   onToggleSave,
   onDownload,
+  onCancelDownload,
 }: Props) {
   const { t, i18n } = useTranslation();
   const { height: windowHeight } = useWindowDimensions();
@@ -156,9 +160,11 @@ export function PaperFeed({
             hasOfflineHtml={hasOfflineHtml(item.arxivId)}
             hasPdf={hasPdf(item.arxivId)}
             downloading={downloadingId === item.arxivId}
+            canCancelDownload={canCancelDownload}
             onRead={onRead}
             onToggleSave={onToggleSave}
             onDownload={onDownload}
+            onCancelDownload={onCancelDownload}
           />
         )}
         pagingEnabled

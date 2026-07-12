@@ -41,6 +41,7 @@ export default function App() {
     history,
     downloads,
     downloadingId,
+    canCancelDownload,
     isSaved,
     hasOfflineHtml,
     hasPdf,
@@ -53,6 +54,7 @@ export default function App() {
     downloadPdf,
     openPdf,
     deleteDownloads,
+    cancelDownload,
   } = useLibrary();
   const feed = usePaperFeed(prefs.categories);
 
@@ -74,6 +76,7 @@ export default function App() {
 
   const showError = useCallback(
     (error: unknown) => {
+      if (error instanceof Error && error.name === "AbortError") return;
       Alert.alert(
         t("library.downloadFailed"),
         error instanceof Error ? error.message : t("common.unknownError"),
@@ -147,8 +150,10 @@ export default function App() {
           hasOfflineHtml={hasOfflineHtml}
           hasPdf={hasPdf}
           downloadingId={downloadingId}
+          canCancelDownload={canCancelDownload}
           onToggleSave={toggleSave}
           onDownload={onDownload}
+          onCancelDownload={cancelDownload}
         />
         <CategoryPicker
           visible={pickerOpen}
@@ -190,6 +195,12 @@ export default function App() {
           paper={viewer?.paper ?? null}
           sourceUri={viewer?.sourceUri}
           translateLangPref={prefs.translateLang}
+          providerProfile={providerManager.activeProfile}
+          getProviderApiKey={providerManager.getApiKey}
+          onOpenSettings={() => {
+            setViewer(null);
+            setSettingsOpen(true);
+          }}
           onClose={() => setViewer(null)}
         />
       </GestureHandlerRootView>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Paper } from "@/types/paper";
 import { deletePdfFiles, downloadPaperPdf, openPdf } from "./downloads";
 import { deleteOfflineHtmlPackage, downloadOfflineHtml } from "./offlineHtml";
@@ -29,6 +29,8 @@ export function useLibrary() {
   const [pdfDownloads, setPdfDownloads] = useState<PdfDownloadEntry[]>([]);
   const [ready, setReady] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadingKind, setDownloadingKind] = useState<"html" | "pdf" | null>(null);
+  const htmlDownloadController = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,9 +102,12 @@ export function useLibrary() {
   }, []);
 
   const downloadHtml = useCallback(async (paper: Paper) => {
+    const controller = new AbortController();
+    htmlDownloadController.current = controller;
     setDownloadingId(paper.arxivId);
+    setDownloadingKind("html");
     try {
-      const entry = await downloadOfflineHtml(paper);
+      const entry = await downloadOfflineHtml(paper, controller.signal);
       setOfflineHtml((previous) => {
         const next = upsertByArxivId(previous, entry);
         void persistOfflineHtml(next);
@@ -110,12 +115,15 @@ export function useLibrary() {
       });
       return entry;
     } finally {
+      htmlDownloadController.current = null;
       setDownloadingId(null);
+      setDownloadingKind(null);
     }
   }, []);
 
   const downloadPdf = useCallback(async (paper: Paper) => {
     setDownloadingId(paper.arxivId);
+    setDownloadingKind("pdf");
     try {
       const entry = await downloadPaperPdf(paper);
       setPdfDownloads((previous) => {
@@ -126,6 +134,7 @@ export function useLibrary() {
       return entry;
     } finally {
       setDownloadingId(null);
+      setDownloadingKind(null);
     }
   }, []);
 
@@ -165,6 +174,7 @@ export function useLibrary() {
     offlineHtml,
     pdfDownloads,
     downloadingId,
+    canCancelDownload: downloadingKind === "html",
     isSaved: (arxivId: string) => savedIds.has(arxivId),
     hasOfflineHtml: (arxivId: string) => htmlById.has(arxivId),
     hasPdf: (arxivId: string) => pdfById.has(arxivId),
@@ -179,5 +189,6 @@ export function useLibrary() {
     openPdf,
     deleteHtml,
     deleteDownloads,
+    cancelDownload: () => htmlDownloadController.current?.abort(),
   };
 }

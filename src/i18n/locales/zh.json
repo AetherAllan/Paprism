@@ -106,6 +106,13 @@
     "delete": "删除配置",
     "deleteTitle": "删除服务配置？"
   },
+  "translation": {
+    "setupTitle": "配置翻译服务",
+    "setupBody": "翻译前需要选择服务配置、模型并填写 API Key。",
+    "keyMissing": "当前服务配置没有 API Key",
+    "pending": "队列 {{count}}",
+    "retryFailed": "重试失败段落"
+  },
   "group": {
     "Browse": "浏览",
     "Computer Science": "计算机科学",

@@ -7,11 +7,13 @@ type Props = {
   height: number;
   saved: boolean;
   downloading: boolean;
+  canCancelDownload: boolean;
   hasOfflineHtml: boolean;
   hasPdf: boolean;
   onRead: (paper: Paper) => void;
   onToggleSave: (paper: Paper) => void;
   onDownload: (paper: Paper) => void;
+  onCancelDownload: () => void;
 };
 
 export function PaperCard({
@@ -19,11 +21,13 @@ export function PaperCard({
   height,
   saved,
   downloading,
+  canCancelDownload,
   hasOfflineHtml,
   hasPdf,
   onRead,
   onToggleSave,
   onDownload,
+  onCancelDownload,
 }: Props) {
   const { t, i18n } = useTranslation();
   const authorLine =
@@ -94,12 +98,18 @@ export function PaperCard({
             styles.secondaryBtn,
             pressed && styles.pressed,
           ]}
-          disabled={downloading}
-          onPress={() => onDownload(paper)}
+          disabled={downloading && !canCancelDownload}
+          onPress={() =>
+            downloading && canCancelDownload
+              ? onCancelDownload()
+              : onDownload(paper)
+          }
         >
           <Text style={styles.secondaryText}>
             {downloading
-              ? t("common.downloading")
+              ? canCancelDownload
+                ? t("common.cancel")
+                : t("common.downloading")
               : hasOfflineHtml
                 ? t("common.offlineRead")
                 : hasPdf

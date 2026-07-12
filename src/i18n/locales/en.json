@@ -105,5 +105,12 @@
     "saveFailed": "Could not save provider",
     "delete": "Delete profile",
     "deleteTitle": "Delete provider profile?"
+  },
+  "translation": {
+    "setupTitle": "Set up translation",
+    "setupBody": "Choose a provider profile, model, and API key before translating.",
+    "keyMissing": "The selected provider has no API key",
+    "pending": "{{count}} queued",
+    "retryFailed": "Retry failed blocks"
   }
 }
