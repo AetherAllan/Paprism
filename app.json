@@ -8,7 +8,7 @@
     "userInterfaceStyle": "dark",
     "android": {
       "package": "com.arxivtok.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#0B1426",
         "foregroundImage": "./assets/AndroidLogo.png"
@@ -29,7 +29,8 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "./plugins/withAbiSplits"
     ],
     "extra": {
       "eas": {

@@ -10,8 +10,9 @@ TikTok-style vertical feed for [arXiv](https://arxiv.org) papers. **Android-firs
 
 - Vertical swipe through paper cards (title, authors, abstract)
 - Category multi-select (**AND** intersection on the API query)
-- Built-in HTML reader (`arxiv.org/html/...`) with optional Google Translate
-- Library: saved, history, PDF downloads (app storage + Android SAF)
+- Online and packaged offline HTML reader with lazy in-page bilingual translation
+- BYOK OpenRouter / OpenAI-compatible profiles; keys use encrypted device storage
+- Library: saved, history, offline HTML, and PDF downloads (app storage + Android SAF)
 - UI languages: English / 中文 (follows system or manual)
 
 ## How it works
@@ -31,9 +32,10 @@ bun start
 bun run android
 ```
 
-Typecheck:
+Checks:
 
 ```bash
+bun test
 bun run typecheck
 ```
 
@@ -43,6 +45,7 @@ Feature-first layout — find code by product area:
 
 ```
 index.ts
+Roadmap/
 src/
   App.tsx
   features/
@@ -76,7 +79,21 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml). Download the APK from the Releases page.
+Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml). A single EAS build produces four GitHub Release assets:
+
+- `arm64-v8a`: mainstream physical Android devices
+- `armeabi-v7a`: older 32-bit devices
+- `x86_64`: emulators and x86 devices
+- `universal`: compatibility fallback, largest download
+
+## Roadmap
+
+Planned work lives in [`Roadmap/`](Roadmap/):
+
+| Doc | Topic |
+|-----|--------|
+| [immersive-translation.md](Roadmap/immersive-translation.md) | In-WebView bilingual translation (Immersive Translate–style); multi-engine, no Google proxy |
+| [release.md](Roadmap/release.md) | ABI-specific APKs and release artifact verification |
 
 ## License
 

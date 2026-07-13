@@ -32,21 +32,21 @@ jobs:
         run: |
           set -euo pipefail
           eas build -p android --profile production --non-interactive --wait --json > /tmp/eas-build.json
-          URL=$(node -e "const b=require('/tmp/eas-build.json'); const x=Array.isArray(b)?b[0]:b; if(!x?.artifacts?.buildUrl) process.exit(1); process.stdout.write(x.artifacts.buildUrl)")
-          echo "apk_url=$URL" >> "$GITHUB_OUTPUT"
+          URL=$(node -e "const b=require('/tmp/eas-build.json'); const x=Array.isArray(b)?b[0]:b; const u=x?.artifacts?.buildArtifactsUrl; if(!u) process.exit(1); process.stdout.write(u)")
+          echo "artifacts_url=$URL" >> "$GITHUB_OUTPUT"
 
-      - name: Download APK
+      - name: Download and verify APKs
         run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
-          curl -fsSL -o "ArxivTok-${TAG}.apk" "${{ steps.build.outputs.apk_url }}"
-          ls -lh "ArxivTok-${TAG}.apk"
+          bash .github/scripts/prepare-apks.sh \
+            "${{ steps.build.outputs.artifacts_url }}" \
+            "${GITHUB_REF_NAME}" \
+            dist
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: ArxivTok-${{ github.ref_name }}.apk
+          files: dist/*.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

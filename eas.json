@@ -5,8 +5,12 @@
   },
   "build": {
     "production": {
+      "buildArtifactPaths": [
+        "android/app/build/outputs/apk/release/*.apk"
+      ],
       "android": {
-        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease",
+        "applicationArchivePath": "android/app/build/outputs/apk/release/app-universal-release.apk",
         "autoIncrement": "versionCode"
       }
     }
