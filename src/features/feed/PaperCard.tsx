@@ -1,13 +1,30 @@
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
 import Bookmark from "lucide-react-native/icons/bookmark";
 import BookmarkCheck from "lucide-react-native/icons/bookmark-check";
 import BookOpen from "lucide-react-native/icons/book-open";
 import Download from "lucide-react-native/icons/download";
 import FileCheck from "lucide-react-native/icons/file-check";
 import X from "lucide-react-native/icons/x";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { runOnJS } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radii } from "@/shared/theme";
 import type { Paper } from "@/types/paper";
+import {
+  pageDirectionForGesture,
+  type PageDirection,
+} from "./feedPaging";
 
 type Props = {
   paper: Paper;
@@ -21,7 +38,15 @@ type Props = {
   onToggleSave: (paper: Paper) => void;
   onDownload: (paper: Paper) => void;
   onCancelDownload: () => void;
+  onPage: (direction: PageDirection) => void;
 };
+
+type TouchStart = {
+  startedAtTop: boolean;
+  startedAtBottom: boolean;
+};
+
+const BOUNDARY_TOLERANCE = 2;
 
 export function PaperCard({
   paper,
@@ -35,8 +60,14 @@ export function PaperCard({
   onToggleSave,
   onDownload,
   onCancelDownload,
+  onPage,
 }: Props) {
   const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const bodyOffset = useRef(0);
+  const bodyContentHeight = useRef(0);
+  const bodyViewportHeight = useRef(0);
+  const touchStart = useRef<TouchStart | null>(null);
   const authorLine =
     paper.authors.length <= 3
       ? paper.authors.join(", ")
@@ -53,28 +84,103 @@ export function PaperCard({
       )
     : "";
 
+  const handleBodyLayout = (event: LayoutChangeEvent) => {
+    bodyViewportHeight.current = event.nativeEvent.layout.height;
+  };
+
+  const handleBodyScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    bodyOffset.current = event.nativeEvent.contentOffset.y;
+  };
+
+  const snapshotGestureBoundary = () => {
+    const maxOffset = Math.max(
+      0,
+      bodyContentHeight.current - bodyViewportHeight.current,
+    );
+
+    // Snapshot the boundary at gesture start. Recomputing it at touch end would
+    // let the same swipe both finish scrolling the abstract and turn the page.
+    touchStart.current = {
+      startedAtTop: bodyOffset.current <= BOUNDARY_TOLERANCE,
+      startedAtBottom:
+        maxOffset <= BOUNDARY_TOLERANCE ||
+        bodyOffset.current >= maxOffset - BOUNDARY_TOLERANCE,
+    };
+  };
+
+  const finishPageGesture = (dx: number, dy: number) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start) return;
+
+    const direction = pageDirectionForGesture({
+      dx,
+      dy,
+      startedAtTop: start.startedAtTop,
+      startedAtBottom: start.startedAtBottom,
+    });
+    if (direction !== 0) onPage(direction);
+  };
+
+  const cancelPageGesture = () => {
+    touchStart.current = null;
+  };
+
+  // React Native's touch-end callback is not reliable once Android's native
+  // ScrollView becomes the responder. A simultaneous native/pan gesture keeps
+  // abstract scrolling native while still observing the complete swipe.
+  const nativeScrollGesture = Gesture.Native();
+  const pageGesture = Gesture.Pan()
+    .simultaneousWithExternalGesture(nativeScrollGesture)
+    .onBegin(() => {
+      runOnJS(snapshotGestureBoundary)();
+    })
+    .onEnd((event) => {
+      runOnJS(finishPageGesture)(event.translationX, event.translationY);
+    })
+    .onFinalize((_event, succeeded) => {
+      if (!succeeded) runOnJS(cancelPageGesture)();
+    });
+
   return (
-    <View style={[styles.shell, { height }]}>
-      <ScrollView
-        style={styles.body}
-        contentContainerStyle={styles.bodyContent}
-        showsVerticalScrollIndicator={false}
-        bounces
-        nestedScrollEnabled
-      >
-        {date ? <Text style={styles.date}>{date}</Text> : null}
+    <View
+      style={[
+        styles.shell,
+        { height, paddingBottom: insets.bottom + 16 },
+      ]}
+    >
+      <GestureDetector gesture={pageGesture}>
+        <GestureDetector gesture={nativeScrollGesture}>
+          <ScrollView
+            style={styles.body}
+            contentContainerStyle={styles.bodyContent}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            overScrollMode="never"
+            scrollEventThrottle={16}
+            onLayout={handleBodyLayout}
+            onContentSizeChange={(_width, contentHeight) => {
+              bodyContentHeight.current = contentHeight;
+            }}
+            onScroll={handleBodyScroll}
+          >
+            {date ? <Text style={styles.date}>{date}</Text> : null}
 
-        <Text style={styles.cats} numberOfLines={2}>
-          {paper.categories.slice(0, 4).join(" · ")}
-        </Text>
+            <Text style={styles.cats} numberOfLines={2}>
+              {paper.categories.slice(0, 4).join(" · ")}
+            </Text>
 
-        <Text style={styles.title}>{paper.title}</Text>
-        <Text style={styles.authors}>{authorLine}</Text>
-        <Text style={styles.arxivId}>{paper.arxivId}</Text>
+            <Text style={styles.title}>{paper.title}</Text>
+            <Text style={styles.authors}>{authorLine}</Text>
+            <Text style={styles.arxivId}>{paper.arxivId}</Text>
 
-        <Text style={styles.sectionLabel}>{t("common.abstract")}</Text>
-        <Text style={styles.abstract}>{paper.abstract}</Text>
-      </ScrollView>
+            <Text style={styles.sectionLabel}>{t("common.abstract")}</Text>
+            <Text style={styles.abstract}>{paper.abstract}</Text>
+          </ScrollView>
+        </GestureDetector>
+      </GestureDetector>
 
       <View style={styles.actions}>
         <Pressable
@@ -147,7 +253,6 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 16,
     backgroundColor: colors.background,
   },
   body: {

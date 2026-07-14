@@ -1,9 +1,9 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  FlatList,
   Pressable,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
   type LayoutChangeEvent,
 } from "react-native";
@@ -11,9 +11,15 @@ import Menu from "lucide-react-native/icons/menu";
 import SlidersHorizontal from "lucide-react-native/icons/sliders-horizontal";
 import { useTranslation } from "react-i18next";
 import Animated, {
+  Easing,
+  cancelAnimation,
   runOnJS,
-  useAnimatedScrollHandler,
+  scrollTo,
+  useAnimatedReaction,
+  useAnimatedRef,
+  useReducedMotion,
   useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { categoriesSummary } from "@/features/categories/categoryLabels";
@@ -21,7 +27,10 @@ import { colors, radii } from "@/shared/theme";
 import type { Paper } from "@/types/paper";
 import { LoadingScreen } from "./LoadingScreen";
 import { PaperCard } from "./PaperCard";
+import { nearestPage, type PageDirection } from "./feedPaging";
 import type { PaginationStatus } from "./usePaperFeed";
+
+const PAGE_ANIMATION_DURATION = 125;
 
 type Props = {
   papers: Paper[];
@@ -69,25 +78,44 @@ export function PaperFeed({
   onCancelDownload,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const [headerH, setHeaderH] = useState(insets.top + 48);
-  const pageHeight = Math.max(windowHeight - headerH, 1);
-  const activeIndex = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
+  const [pageHeight, setPageHeight] = useState(0);
+  const listRef = useAnimatedRef<FlatList<Paper>>();
+  const listReady = useSharedValue(false);
+  const animatedOffset = useSharedValue(0);
+  const targetIndex = useRef(index);
+  const feedKey = categories.slice().sort().join("|");
 
-  const onHeaderLayout = useCallback((e: LayoutChangeEvent) => {
-    setHeaderH(e.nativeEvent.layout.height);
-  }, []);
+  useEffect(() => {
+    if (papers.length === 0) listReady.value = false;
+  }, [listReady, papers.length]);
 
-  const onScroll = useAnimatedScrollHandler({
-    onMomentumEnd: (e) => {
-      const next = Math.round(e.contentOffset.y / pageHeight);
-      if (next !== activeIndex.value && next >= 0) {
-        activeIndex.value = next;
-        runOnJS(onIndexChange)(next);
-      }
+  useEffect(() => {
+    targetIndex.current = index;
+    if (pageHeight <= 0) return;
+    cancelAnimation(animatedOffset);
+    animatedOffset.value = index * pageHeight;
+  }, [animatedOffset, feedKey, index, pageHeight]);
+
+  useAnimatedReaction(
+    () => animatedOffset.value,
+    (offset) => {
+      if (listReady.value) scrollTo(listRef, 0, offset, false);
     },
-  });
+    [listReady, listRef],
+  );
+
+  const onListLayout = useCallback((event: LayoutChangeEvent) => {
+    const measuredHeight = event.nativeEvent.layout.height;
+    if (measuredHeight <= 0) return;
+    if (Math.abs(pageHeight - measuredHeight) < 0.5) {
+      listReady.value = true;
+      return;
+    }
+    listReady.value = false;
+    setPageHeight(measuredHeight);
+  }, [listReady, pageHeight]);
 
   const getItemLayout = useCallback(
     (_: ArrayLike<Paper> | null | undefined, i: number) => ({
@@ -98,13 +126,61 @@ export function PaperFeed({
     [pageHeight],
   );
 
+  const finishPageAnimation = useCallback(
+    (offset: number) => {
+      const settled = nearestPage(offset, pageHeight, papers.length);
+      targetIndex.current = settled.index;
+      if (settled.index !== index) onIndexChange(settled.index);
+    },
+    [index, onIndexChange, pageHeight, papers.length],
+  );
+
+  const requestPage = useCallback(
+    (direction: PageDirection) => {
+      if (pageHeight <= 0 || papers.length === 0) return;
+
+      const current = Math.min(
+        papers.length - 1,
+        Math.max(0, targetIndex.current),
+      );
+      const next = Math.min(
+        papers.length - 1,
+        Math.max(0, current + direction),
+      );
+      if (next === current) return;
+
+      // Keep this ref ahead of React state while a native scroll animation is
+      // running, so a second deliberate boundary swipe uses the intended page.
+      targetIndex.current = next;
+      const nextOffset = next * pageHeight;
+      cancelAnimation(animatedOffset);
+      if (reduceMotion) {
+        animatedOffset.value = nextOffset;
+        finishPageAnimation(nextOffset);
+        return;
+      }
+
+      animatedOffset.value = withTiming(
+        nextOffset,
+        {
+          duration: PAGE_ANIMATION_DURATION,
+          easing: Easing.out(Easing.cubic),
+        },
+        (finished) => {
+          if (finished) runOnJS(finishPageAnimation)(nextOffset);
+        },
+      );
+    },
+    [animatedOffset, finishPageAnimation, pageHeight, papers.length, reduceMotion],
+  );
+
   if (status === "loading" && papers.length === 0) {
     return <LoadingScreen />;
   }
 
   if (status === "error" && papers.length === 0) {
     return (
-      <View style={[styles.center, { height: windowHeight }]}>
+      <View style={styles.center}>
         <Text style={styles.errorTitle}>{t("common.loadFeedFailed")}</Text>
         <Text style={styles.errorBody}>
           {error ?? t("common.unknownError")}
@@ -120,7 +196,6 @@ export function PaperFeed({
     <View style={styles.root}>
       <View
         style={[styles.header, { paddingTop: Math.max(insets.top, 8) }]}
-        onLayout={onHeaderLayout}
       >
         <Pressable onPress={onOpenCategories} style={styles.catBtn} hitSlop={8}>
           <View style={styles.catIcon}>
@@ -166,8 +241,9 @@ export function PaperFeed({
       </View>
 
       <Animated.FlatList
-        key={`${categories.slice().sort().join("|")}-${pageHeight}-${i18n.language}`}
-        data={papers}
+        ref={listRef}
+        key={`${feedKey}-${pageHeight}-${i18n.language}`}
+        data={pageHeight > 0 ? papers : []}
         keyExtractor={(item) => item.arxivId}
         renderItem={({ item }) => (
           <PaperCard
@@ -182,23 +258,23 @@ export function PaperFeed({
             onToggleSave={onToggleSave}
             onDownload={onDownload}
             onCancelDownload={onCancelDownload}
+            onPage={requestPage}
           />
         )}
-        pagingEnabled
+        initialScrollIndex={
+          pageHeight > 0 && papers.length > 0
+            ? Math.min(index, papers.length - 1)
+            : undefined
+        }
+        scrollEnabled={false}
         showsVerticalScrollIndicator={false}
-        decelerationRate="fast"
-        snapToInterval={pageHeight}
-        snapToAlignment="start"
-        disableIntervalMomentum
-        bounces
         getItemLayout={getItemLayout}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
+        onLayout={onListLayout}
         windowSize={5}
         maxToRenderPerBatch={3}
         initialNumToRender={2}
         removeClippedSubviews
-        style={{ height: pageHeight }}
+        style={styles.list}
       />
     </View>
   );
@@ -208,6 +284,9 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  list: {
+    flex: 1,
   },
   header: {
     flexDirection: "row",

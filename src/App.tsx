@@ -255,10 +255,6 @@ export default function App() {
           interactive={
             menuOpen && activeSection === null && viewer === null && !pickerOpen
           }
-          edgeEnabled={
-            !menuOpen && activeSection === null && viewer === null && !pickerOpen
-          }
-          onOpen={() => setMenuOpen(true)}
           onSelect={(section) => {
             setActiveSection(section);
           }}

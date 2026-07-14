@@ -26,15 +26,12 @@ import type { AppSection } from "@/types/navigation";
 import { AppMenuContent } from "./AppMenuContent";
 import {
   drawerWidth,
-  EDGE_GESTURE_WIDTH,
   shouldCompleteSwipe,
 } from "./navigationMotion";
 
 type Props = {
   visible: boolean;
   interactive: boolean;
-  edgeEnabled: boolean;
-  onOpen: () => void;
   onSelect: (section: AppSection) => void;
   onCloseComplete: () => void;
 };
@@ -49,8 +46,6 @@ const DRAWER_SPRING = {
 export function AppMenu({
   visible,
   interactive,
-  edgeEnabled,
-  onOpen,
   onSelect,
   onCloseComplete,
 }: Props) {
@@ -117,41 +112,6 @@ export function AppMenu({
     return () => subscription.remove();
   }, [interactive, requestClose, visible]);
 
-  const edgePan = Gesture.Pan()
-    .enabled(edgeEnabled && !visible)
-    .activeOffsetX(-6)
-    .failOffsetY([-12, 12])
-    .onStart(() => {
-      cancelAnimation(translateX);
-      translateX.value = panelWidth;
-    })
-    .onUpdate((event) => {
-      translateX.value = Math.min(
-        panelWidth,
-        Math.max(0, panelWidth + event.translationX),
-      );
-    })
-    .onEnd((event) => {
-      const opened = panelWidth - translateX.value;
-      if (
-        shouldCompleteSwipe(opened, panelWidth, -event.velocityX, 0.35)
-      ) {
-        translateX.value = reduceMotion ? 0 : withSpring(0, DRAWER_SPRING);
-        runOnJS(onOpen)();
-      } else {
-        translateX.value = reduceMotion
-          ? panelWidth
-          : withSpring(panelWidth, DRAWER_SPRING);
-      }
-    })
-    .onFinalize((_event, succeeded) => {
-      if (!succeeded) {
-        translateX.value = reduceMotion
-          ? panelWidth
-          : withSpring(panelWidth, DRAWER_SPRING);
-      }
-    });
-
   const closePan = Gesture.Pan()
     .enabled(visible && interactive)
     .activeOffsetX(8)
@@ -212,12 +172,6 @@ export function AppMenu({
 
   return (
     <View pointerEvents="box-none" style={styles.layer}>
-      {edgeEnabled && !visible ? (
-        <GestureDetector gesture={edgePan}>
-          <View style={styles.openEdge} />
-        </GestureDetector>
-      ) : null}
-
       <View
         accessibilityElementsHidden={!visible || !interactive}
         accessibilityViewIsModal={visible && interactive}
@@ -263,13 +217,6 @@ const styles = StyleSheet.create({
     left: 0,
     zIndex: 20,
     elevation: 20,
-  },
-  openEdge: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: EDGE_GESTURE_WIDTH,
   },
   backdrop: {
     position: "absolute",
