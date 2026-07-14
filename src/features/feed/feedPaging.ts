@@ -1,5 +1,10 @@
 export type PageDirection = -1 | 1;
 
+/** Fetch late enough to avoid hoarding papers, but before the user hits the edge. */
+export function shouldPrefetch(index: number, paperCount: number): boolean {
+  return paperCount > 0 && paperCount - 1 - index <= 4;
+}
+
 export const PAGE_SWIPE_DISTANCE = 48;
 
 type PageGesture = {

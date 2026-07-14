@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { fetchPaperPage } from "@/lib/arxiv";
+import { ARXIV_PAGE_SIZE, fetchPaperPage } from "@/lib/arxiv";
 import { categoriesToSearchQuery } from "@/lib/categories";
 import {
   buildSearchQuery,
@@ -8,8 +8,6 @@ import {
   searchReducer,
   type SearchScope,
 } from "./searchCore";
-
-const PAGE_SIZE = 30;
 
 export function usePaperSearch(categories: string[]) {
   const { t } = useTranslation();
@@ -61,7 +59,7 @@ export function usePaperSearch(categories: string[]) {
         const page = await fetchPaperPage({
           query: searchQuery,
           start,
-          maxResults: PAGE_SIZE,
+          maxResults: ARXIV_PAGE_SIZE,
           sortBy: "relevance",
         });
         dispatch({

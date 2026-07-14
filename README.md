@@ -20,7 +20,7 @@ TikTok-style vertical feed for [arXiv](https://arxiv.org) papers. **Android-firs
 
 - Official Atom API: `https://export.arxiv.org/api/query`
 - **Rate limit:** serial requests, ≥ **3s** between starts (arXiv ToU)
-- **Prefetch:** 30 papers per page; when ≤ 12 remain ahead, the next page loads in the background
+- **Prefetch:** 20 papers per page; when 4 remain ahead, the next page loads in the background
 
 ## Run
 

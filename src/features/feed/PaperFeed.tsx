@@ -8,7 +8,7 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 import Menu from "lucide-react-native/icons/menu";
-import SlidersHorizontal from "lucide-react-native/icons/sliders-horizontal";
+import Tags from "lucide-react-native/icons/tags";
 import { useTranslation } from "react-i18next";
 import Animated, {
   Easing,
@@ -192,6 +192,19 @@ export function PaperFeed({
     );
   }
 
+  if (status === "ready" && papers.length === 0) {
+    return (
+      <View style={styles.center}>
+        <Tags color={colors.dim} size={28} strokeWidth={1.5} />
+        <Text style={styles.errorTitle}>{t("categories.noCommonPapers")}</Text>
+        <Text style={styles.errorBody}>{t("categories.noCommonPapersHint")}</Text>
+        <Pressable style={styles.retry} onPress={onOpenCategories}>
+          <Text style={styles.retryText}>{t("categories.changeSelection")}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
       <View
@@ -199,7 +212,7 @@ export function PaperFeed({
       >
         <Pressable onPress={onOpenCategories} style={styles.catBtn} hitSlop={8}>
           <View style={styles.catIcon}>
-            <SlidersHorizontal color={colors.text} size={18} strokeWidth={1.8} />
+            <Tags color={colors.text} size={18} strokeWidth={1.8} />
           </View>
           <View style={styles.catCopy}>
             <Text style={styles.catLabel} numberOfLines={1}>
@@ -213,20 +226,23 @@ export function PaperFeed({
           </View>
         </Pressable>
         <View style={styles.headerRight}>
-          <View style={styles.pageMeta}>
-            <Text style={styles.counter}>
-              {papers.length === 0 ? "—" : `${index + 1} / ${papers.length}`}
-            </Text>
-            {paginationStatus === "loading" ? (
-              <Text style={styles.pageStatus}>{t("common.loadingMore")}</Text>
-            ) : paginationStatus === "error" ? (
-              <Pressable onPress={onRetry} hitSlop={8} accessibilityHint={paginationError ?? undefined}>
-                <Text style={styles.pageError}>{t("common.retryMore")}</Text>
-              </Pressable>
-            ) : paginationStatus === "exhausted" ? (
-              <Text style={styles.pageStatus}>{t("common.endOfFeed")}</Text>
-            ) : null}
-          </View>
+          {paginationStatus !== "idle" ? (
+            <View style={styles.pageMeta}>
+              {paginationStatus === "loading" ? (
+                <Text style={styles.pageStatus}>{t("common.loadingMore")}</Text>
+              ) : paginationStatus === "error" ? (
+                <Pressable
+                  onPress={onRetry}
+                  hitSlop={8}
+                  accessibilityHint={paginationError ?? undefined}
+                >
+                  <Text style={styles.pageError}>{t("common.retryMore")}</Text>
+                </Pressable>
+              ) : paginationStatus === "exhausted" ? (
+                <Text style={styles.pageStatus}>{t("common.endOfFeed")}</Text>
+              ) : null}
+            </View>
+          ) : null}
           <Pressable
             accessibilityLabel={t("menu.title")}
             onPress={onOpenMenu}
@@ -332,11 +348,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   pageMeta: { alignItems: "flex-end", gap: 3 },
-  counter: {
-    color: colors.muted,
-    fontSize: 13,
-    fontVariant: ["tabular-nums"],
-  },
   pageStatus: {
     color: colors.dim,
     fontSize: 11,

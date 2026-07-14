@@ -1,6 +1,8 @@
 {
   "common": {
     "done": "Done",
+    "apply": "Apply",
+    "close": "Close",
     "settings": "Settings",
     "change": "Change",
     "retry": "Retry",
@@ -47,7 +49,12 @@
     "title": "Categories",
     "hint": "Select one or more. Feed shows papers tagged with all selected categories.",
     "search": "Search categories",
-    "noMatches": "No matches"
+    "noMatches": "No matches",
+    "selectedCount": "{{count}} selected",
+    "removeSelection": "Remove {{category}}",
+    "noCommonPapers": "No papers match every selected category",
+    "noCommonPapersHint": "Multiple categories use a strict intersection. Remove one or more categories to broaden the feed.",
+    "changeSelection": "Change categories"
   },
   "settings": {
     "title": "Settings",
@@ -58,6 +65,7 @@
     "langZh": "Chinese",
     "translationLanguage": "Paper translation language",
     "translationHint": "Used when you tap Translate on a paper. System follows your phone language.",
+    "searchLanguage": "Search languages",
     "about": "About",
     "version": "Version {{version}}",
     "aboutBody1": "TikTok-style feed for arXiv papers. Each device talks to arXiv directly — no account, no backend.",

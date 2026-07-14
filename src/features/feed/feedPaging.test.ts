@@ -1,7 +1,19 @@
 import { describe, expect, test } from "bun:test";
-import { nearestPage, pageDirectionForGesture } from "./feedPaging";
+import { ARXIV_PAGE_SIZE } from "@/lib/arxiv";
+import {
+  nearestPage,
+  pageDirectionForGesture,
+  shouldPrefetch,
+} from "./feedPaging";
 
 describe("feed paging", () => {
+  test("loads 20 papers and only prefetches within the final four", () => {
+    expect(ARXIV_PAGE_SIZE).toBe(20);
+    expect(shouldPrefetch(14, 20)).toBe(false);
+    expect(shouldPrefetch(15, 20)).toBe(true);
+    expect(shouldPrefetch(0, 0)).toBe(false);
+  });
+
   test("does not page when the gesture started inside the abstract", () => {
     expect(
       pageDirectionForGesture({

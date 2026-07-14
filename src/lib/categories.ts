@@ -213,9 +213,10 @@ export const FEED_CATEGORIES: CategoryOption[] = [
 
 export const DEFAULT_CATEGORY = "cs.LG";
 export const DEFAULT_CATEGORIES = [DEFAULT_CATEGORY];
+const KNOWN_CATEGORY_IDS = new Set(FEED_CATEGORIES.map((category) => category.id));
 
 export function isKnownCategory(id: string): boolean {
-  return FEED_CATEGORIES.some((c) => c.id === id);
+  return KNOWN_CATEGORY_IDS.has(id);
 }
 
 /** Dedupe, drop unknown, enforce Everything exclusivity, never empty. */
@@ -226,6 +227,21 @@ export function normalizeCategories(ids: string[]): string[] {
   return known;
 }
 
+/** Apply the picker's toggle rules in one place so UI drafts stay valid. */
+export function toggleCategorySelection(ids: string[], id: string): string[] {
+  const current = normalizeCategories(ids);
+  if (id === "all") {
+    return current.includes("all") ? [...DEFAULT_CATEGORIES] : ["all"];
+  }
+
+  const withoutAll = current.filter((value) => value !== "all");
+  return normalizeCategories(
+    withoutAll.includes(id)
+      ? withoutAll.filter((value) => value !== id)
+      : [...withoutAll, id],
+  );
+}
+
 /** arXiv API search_query: AND intersection of selected cats. */
 export function categoriesToSearchQuery(ids: string[]): string {
   const cats = normalizeCategories(ids);
@@ -234,5 +250,5 @@ export function categoriesToSearchQuery(ids: string[]): string {
   // on that broken endpoint behavior.
   if (cats.length === 1 && cats[0] === "all") return "ti:*";
   if (cats.length === 1) return `cat:${cats[0]}`;
-  return cats.map((c) => `cat:${c}`).join(" AND ");
+  return cats.map((category) => `cat:${category}`).join(" AND ");
 }

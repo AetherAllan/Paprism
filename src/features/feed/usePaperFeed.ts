@@ -1,16 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { normalizeCategories } from "@/lib/categories";
-import { fetchPaperPage } from "@/lib/arxiv";
+import { ARXIV_PAGE_SIZE, fetchPaperPage } from "@/lib/arxiv";
 import i18n from "@/i18n";
 import type { Paper } from "@/types/paper";
-
-/** How many papers per arXiv request. */
-const PAGE_SIZE = 30;
-/**
- * When fewer than this many items remain ahead of the user,
- * kick off the next page fetch (optimistic prefetch).
- */
-const PREFETCH_AHEAD = 12;
+import { shouldPrefetch } from "./feedPaging";
 
 type Status = "idle" | "loading" | "ready" | "error";
 export type PaginationStatus = "idle" | "loading" | "error" | "exhausted";
@@ -66,7 +59,7 @@ export function usePaperFeed(categories: string[]) {
       const page = await fetchPaperPage({
         categories: categoriesRef.current,
         start,
-        maxResults: PAGE_SIZE,
+        maxResults: ARXIV_PAGE_SIZE,
       });
 
       if (gen !== generation.current) return;
@@ -124,22 +117,12 @@ export function usePaperFeed(categories: string[]) {
     setPaginationStatus("idle");
     setPaginationError(null);
 
-    let cancelled = false;
-    (async () => {
-      await loadMore(true);
-      if (cancelled) return;
-      await loadMore(false);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    void loadMore(true);
   }, [key, loadMore]);
 
   useEffect(() => {
     if (status !== "ready" || papers.length === 0) return;
-    const remaining = papers.length - 1 - index;
-    if (remaining <= PREFETCH_AHEAD) {
+    if (shouldPrefetch(index, papers.length)) {
       void loadMore(false);
     }
   }, [index, papers.length, status, loadMore]);

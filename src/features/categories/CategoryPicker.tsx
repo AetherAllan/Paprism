@@ -1,21 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  FlatList,
   Modal,
   Pressable,
-  ScrollView,
+  SectionList,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import Check from "lucide-react-native/icons/check";
 import Search from "lucide-react-native/icons/search";
+import X from "lucide-react-native/icons/x";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  DEFAULT_CATEGORIES,
   FEED_CATEGORIES,
   normalizeCategories,
+  toggleCategorySelection,
   type CategoryOption,
 } from "@/lib/categories";
 import { colors, radii } from "@/shared/theme";
@@ -23,6 +24,7 @@ import {
   categoryGroupLabel,
   categoryLabel,
 } from "./categoryLabels";
+import { CategoryRow, SelectedCategoryChip } from "./CategoryPickerRows";
 
 type Props = {
   visible: boolean;
@@ -31,53 +33,51 @@ type Props = {
   onClose: () => void;
 };
 
+type CategorySection = { title: string; data: CategoryOption[] };
+
 export function CategoryPicker({ visible, selected, onSelect, onClose }: Props) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState("");
-  const [draft, setDraft] = useState<string[]>(() =>
-    normalizeCategories(selected),
-  );
+  const [draft, setDraft] = useState(() => normalizeCategories(selected));
+  const selectedIds = useMemo(() => new Set(draft), [draft]);
 
   useEffect(() => {
-    if (visible) {
-      setDraft(normalizeCategories(selected));
-      setQuery("");
-    }
+    if (!visible) return;
+    setDraft(normalizeCategories(selected));
+    setQuery("");
   }, [visible, selected]);
 
-  const groups = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const filtered = q
-      ? FEED_CATEGORIES.filter((c) => {
-          const label = categoryLabel(c.id).toLowerCase();
-          const group = categoryGroupLabel(c.group).toLowerCase();
-          return (
-            label.includes(q) ||
-            c.id.toLowerCase().includes(q) ||
-            group.includes(q) ||
-            c.label.toLowerCase().includes(q) ||
-            c.group.toLowerCase().includes(q)
-          );
-        })
+  const searchableCategories = useMemo(
+    () =>
+      FEED_CATEGORIES.map((category) => ({
+        category,
+        text: [
+          category.id,
+          category.label,
+          category.group,
+          categoryLabel(category.id),
+          categoryGroupLabel(category.group),
+        ]
+          .join("\n")
+          .toLocaleLowerCase(),
+      })),
+    [i18n.language],
+  );
+
+  const sections = useMemo(() => {
+    const value = query.trim().toLocaleLowerCase();
+    const filtered = value
+      ? searchableCategories
+          .filter((item) => item.text.includes(value))
+          .map((item) => item.category)
       : FEED_CATEGORIES;
     return groupBy(filtered);
-    // Recompute when language changes so labels refresh
-  }, [query, i18n.language]);
+  }, [query, searchableCategories]);
 
-  const toggle = (id: string) => {
-    setDraft((prev) => {
-      if (id === "all") {
-        return prev.includes("all") ? [...DEFAULT_CATEGORIES] : ["all"];
-      }
-      const withoutAll = prev.filter((x) => x !== "all");
-      if (withoutAll.includes(id)) {
-        const next = withoutAll.filter((x) => x !== id);
-        return next.length === 0 ? [...DEFAULT_CATEGORIES] : next;
-      }
-      return [...withoutAll, id];
-    });
-  };
+  const toggle = useCallback((id: string) => {
+    setDraft((current) => toggleCategorySelection(current, id));
+  }, []);
 
   const apply = () => {
     onSelect(normalizeCategories(draft));
@@ -94,13 +94,26 @@ export function CategoryPicker({ visible, selected, onSelect, onClose }: Props) 
       <View
         style={[
           styles.root,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 12 },
+          {
+            paddingTop: insets.top + 8,
+            paddingBottom: Math.max(insets.bottom, 12),
+          },
         ]}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>{t("categories.title")}</Text>
-          <Pressable onPress={apply} hitSlop={12} style={styles.close}>
-            <Text style={styles.closeText}>{t("common.done")}</Text>
+          <View>
+            <Text style={styles.title}>{t("categories.title")}</Text>
+            <Text style={styles.count}>
+              {t("categories.selectedCount", { count: draft.length })}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityLabel={t("common.close")}
+            onPress={onClose}
+            hitSlop={10}
+            style={({ pressed }) => [styles.close, pressed && styles.pressed]}
+          >
+            <X color={colors.muted} size={20} strokeWidth={1.8} />
           </Pressable>
         </View>
 
@@ -120,154 +133,155 @@ export function CategoryPicker({ visible, selected, onSelect, onClose }: Props) 
           />
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.list}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {groups.length === 0 ? (
-            <Text style={styles.empty}>{t("categories.noMatches")}</Text>
-          ) : (
-            groups.map(([group, items]) => (
-              <View key={group} style={styles.section}>
-                <Text style={styles.group}>{categoryGroupLabel(group)}</Text>
-                {items.map((item) => {
-                  const active = draft.includes(item.id);
-                  return (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => toggle(item.id)}
-                      style={[styles.row, active && styles.rowActive]}
-                    >
-                      <Text
-                        style={[styles.label, active && styles.labelActive]}
-                        numberOfLines={2}
-                      >
-                        {categoryLabel(item.id)}
-                      </Text>
-                      {active ? (
-                        <Check color={colors.text} size={18} strokeWidth={2} />
-                      ) : null}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ))
+        <FlatList
+          horizontal
+          data={draft}
+          keyExtractor={(id) => id}
+          renderItem={({ item }) => (
+            <SelectedCategoryChip
+              id={item}
+              label={categoryLabel(item)}
+              onRemove={toggle}
+              removeLabel={t("categories.removeSelection", {
+                category: categoryLabel(item),
+              })}
+            />
           )}
-        </ScrollView>
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          windowSize={3}
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          style={styles.selectedList}
+          contentContainerStyle={styles.selectedContent}
+        />
+
+        <SectionList
+          style={styles.categoryList}
+          sections={sections}
+          extraData={selectedIds}
+          keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          stickySectionHeadersEnabled
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <Text style={styles.empty}>{t("categories.noMatches")}</Text>
+          }
+          renderSectionHeader={({ section }) => (
+            <Text style={styles.group}>{categoryGroupLabel(section.title)}</Text>
+          )}
+          renderItem={({ item }) => {
+            return (
+              <CategoryRow
+                id={item.id}
+                label={categoryLabel(item.id)}
+                active={selectedIds.has(item.id)}
+                onToggle={toggle}
+              />
+            );
+          }}
+          initialNumToRender={10}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews
+        />
+
+        <Pressable
+          onPress={apply}
+          style={({ pressed }) => [styles.apply, pressed && styles.applyPressed]}
+        >
+          <Text style={styles.applyText}>{t("common.apply")}</Text>
+        </Pressable>
       </View>
     </Modal>
   );
 }
 
-function groupBy(items: CategoryOption[]): [string, CategoryOption[]][] {
-  const map = new Map<string, CategoryOption[]>();
+function groupBy(items: CategoryOption[]): CategorySection[] {
+  const groups = new Map<string, CategoryOption[]>();
   for (const item of items) {
-    const list = map.get(item.group) ?? [];
+    const list = groups.get(item.group) ?? [];
     list.push(item);
-    map.set(item.group, list);
+    groups.set(item.group, list);
   }
-  return [...map.entries()];
+  return [...groups].map(([title, data]) => ({ title, data }));
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  root: { flex: 1, backgroundColor: colors.background },
   header: {
+    minHeight: 54,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingBottom: 6,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  close: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  closeText: {
-    color: colors.muted,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  hint: {
-    color: colors.dim,
-    fontSize: 13,
-    lineHeight: 18,
-    paddingHorizontal: 20,
     marginBottom: 10,
   },
+  title: { color: colors.text, fontSize: 20, fontWeight: "700" },
+  count: { color: colors.dim, fontSize: 12, marginTop: 2 },
+  hint: {
+    color: colors.dim,
+    fontSize: 12,
+    lineHeight: 17,
+    marginHorizontal: 20,
+    marginBottom: 10,
+  },
+  close: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.medium,
+    backgroundColor: colors.surfaceRaised,
+  },
   searchShell: {
-    marginHorizontal: 16,
-    marginBottom: 12,
     minHeight: 46,
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
+    marginHorizontal: 16,
+    paddingHorizontal: 13,
     backgroundColor: colors.surfaceRaised,
     borderRadius: radii.medium,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    paddingHorizontal: 14,
   },
-  search: {
-    flex: 1,
-    paddingVertical: 12,
-    color: colors.text,
-    fontSize: 15,
+  search: { flex: 1, color: colors.text, fontSize: 15, paddingVertical: 10 },
+  selectedList: {
+    flexGrow: 0,
+    minHeight: 54,
+    marginVertical: 10,
   },
-  list: {
+  selectedContent: {
+    alignItems: "center",
+    gap: 8,
     paddingHorizontal: 16,
-    paddingBottom: 24,
-    gap: 16,
+    paddingRight: 28,
   },
-  empty: {
-    color: colors.dim,
-    textAlign: "center",
-    marginTop: 32,
-  },
-  section: {
-    gap: 2,
-    padding: 4,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
-  },
+  categoryList: { flex: 1 },
+  list: { paddingHorizontal: 16, paddingBottom: 12 },
   group: {
     color: colors.dim,
     fontSize: 12,
     fontWeight: "600",
-    marginBottom: 4,
-    marginHorizontal: 8,
-    marginTop: 8,
+    paddingHorizontal: 4,
+    paddingTop: 13,
+    paddingBottom: 7,
+    backgroundColor: colors.background,
   },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingVertical: 14,
+  empty: { color: colors.dim, textAlign: "center", marginTop: 32 },
+  apply: {
     minHeight: 48,
-    borderRadius: radii.small,
-    gap: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: radii.medium,
+    backgroundColor: colors.text,
   },
-  rowActive: {
-    backgroundColor: colors.surfacePressed,
-  },
-  label: {
-    flex: 1,
-    color: colors.textSecondary,
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  labelActive: {
-    color: colors.text,
-  },
+  applyPressed: { opacity: 0.82 },
+  applyText: { color: colors.inverse, fontSize: 15, fontWeight: "700" },
+  pressed: { opacity: 0.82 },
 });

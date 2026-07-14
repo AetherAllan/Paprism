@@ -1,30 +1,40 @@
+import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import Check from "lucide-react-native/icons/check";
 import Info from "lucide-react-native/icons/info";
 import RotateCcw from "lucide-react-native/icons/rotate-ccw";
 import { useTranslation } from "react-i18next";
 import { SectionFrame } from "@/features/menu/SectionFrame";
-import type { UiLangPref } from "@/i18n";
-import type { TranslateLangPref } from "@/lib/storage";
+import { deviceUiLang, type UiLangPref } from "@/i18n";
+import {
+  deviceTranslateLang,
+  type TranslateLangPref,
+} from "@/lib/storage";
 import { colors, radii } from "@/shared/theme";
 import type { AppSection } from "@/types/navigation";
+import { LanguagePickerField } from "./LanguagePickerField";
+import { LanguagePickerSheet } from "./LanguagePickerSheet";
+import type { LanguageOption } from "./languagePicker";
 import { ProviderSettings } from "./ProviderSettings";
 import type { useProviderProfiles } from "./useProviderProfiles";
 
-const TRANSLATE_OPTIONS: { id: TranslateLangPref; labelKey: string }[] = [
+const TRANSLATE_OPTIONS: {
+  id: TranslateLangPref;
+  labelKey: string;
+  keywords?: string[];
+}[] = [
   { id: "system", labelKey: "settings.tlSystem" },
-  { id: "en", labelKey: "settings.tlEn" },
-  { id: "zh-CN", labelKey: "settings.tlZhCN" },
-  { id: "zh-TW", labelKey: "settings.tlZhTW" },
-  { id: "ja", labelKey: "settings.tlJa" },
-  { id: "ko", labelKey: "settings.tlKo" },
-  { id: "es", labelKey: "settings.tlEs" },
-  { id: "fr", labelKey: "settings.tlFr" },
-  { id: "de", labelKey: "settings.tlDe" },
-  { id: "pt", labelKey: "settings.tlPt" },
-  { id: "ru", labelKey: "settings.tlRu" },
-  { id: "ar", labelKey: "settings.tlAr" },
-  { id: "hi", labelKey: "settings.tlHi" },
+  { id: "en", labelKey: "settings.tlEn", keywords: ["English"] },
+  { id: "zh-CN", labelKey: "settings.tlZhCN", keywords: ["Chinese Simplified"] },
+  { id: "zh-TW", labelKey: "settings.tlZhTW", keywords: ["Chinese Traditional"] },
+  { id: "ja", labelKey: "settings.tlJa", keywords: ["Japanese"] },
+  { id: "ko", labelKey: "settings.tlKo", keywords: ["Korean"] },
+  { id: "es", labelKey: "settings.tlEs", keywords: ["Spanish"] },
+  { id: "fr", labelKey: "settings.tlFr", keywords: ["French"] },
+  { id: "de", labelKey: "settings.tlDe", keywords: ["German"] },
+  { id: "pt", labelKey: "settings.tlPt", keywords: ["Portuguese"] },
+  { id: "ru", labelKey: "settings.tlRu", keywords: ["Russian"] },
+  { id: "ar", labelKey: "settings.tlAr", keywords: ["Arabic"] },
+  { id: "hi", labelKey: "settings.tlHi", keywords: ["Hindi"] },
 ];
 
 const UI_LANG_OPTIONS: { id: UiLangPref; labelKey: string }[] = [
@@ -62,6 +72,7 @@ export function SettingsScreen({
   providerManager,
 }: Props) {
   const { t } = useTranslation();
+  const [picker, setPicker] = useState<"ui" | "translation" | null>(null);
   const title = t(
     section === "translation"
       ? "menu.translation"
@@ -69,6 +80,33 @@ export function SettingsScreen({
         ? "menu.language"
         : "settings.about",
   );
+  const uiOptions = useMemo<LanguageOption[]>(() => {
+    const resolved = deviceUiLang();
+    const resolvedLabel = UI_LANG_OPTIONS.find((option) => option.id === resolved);
+    return UI_LANG_OPTIONS.map((option) => ({
+      id: option.id,
+      label: t(option.labelKey),
+      detail:
+        option.id === "system" && resolvedLabel
+          ? t(resolvedLabel.labelKey)
+          : undefined,
+    }));
+  }, [t]);
+  const translateOptions = useMemo<LanguageOption[]>(() => {
+    const resolved = deviceTranslateLang();
+    const resolvedOption = TRANSLATE_OPTIONS.find((option) => option.id === resolved);
+    return TRANSLATE_OPTIONS.map((option) => ({
+      id: option.id,
+      label: t(option.labelKey),
+      detail:
+        option.id === "system"
+          ? resolvedOption
+            ? t(resolvedOption.labelKey)
+            : resolved
+          : undefined,
+      keywords: option.keywords,
+    }));
+  }, [t]);
 
   return (
     <SectionFrame visible={visible} title={title} onBackComplete={onBack}>
@@ -81,27 +119,11 @@ export function SettingsScreen({
             <>
               <Text style={styles.section}>{t("settings.appLanguage")}</Text>
               <Text style={styles.hint}>{t("settings.appLanguageHint")}</Text>
-              <View style={styles.optionGroup}>
-                {UI_LANG_OPTIONS.map((opt) => {
-                  const active = opt.id === uiLang;
-                  return (
-                    <Pressable
-                      key={opt.id}
-                      onPress={() => onUiLangChange(opt.id)}
-                      style={({ pressed }) => [
-                        styles.row,
-                        active && styles.rowActive,
-                        pressed && styles.rowPressed,
-                      ]}
-                    >
-                      <Text style={styles.rowLabel}>{t(opt.labelKey)}</Text>
-                      {active ? (
-                        <Check color={colors.text} size={18} strokeWidth={2} />
-                      ) : null}
-                    </Pressable>
-                  );
-                })}
-              </View>
+              <LanguagePickerField
+                value={uiLang}
+                options={uiOptions}
+                onPress={() => setPicker("ui")}
+              />
             </>
           ) : null}
 
@@ -109,27 +131,11 @@ export function SettingsScreen({
             <>
               <Text style={styles.section}>{t("settings.translationLanguage")}</Text>
               <Text style={styles.hint}>{t("settings.translationHint")}</Text>
-              <View style={styles.optionGroup}>
-                {TRANSLATE_OPTIONS.map((option) => {
-                  const active = option.id === translateLang;
-                  return (
-                    <Pressable
-                      key={option.id}
-                      onPress={() => onTranslateLangChange(option.id)}
-                      style={({ pressed }) => [
-                        styles.row,
-                        active && styles.rowActive,
-                        pressed && styles.rowPressed,
-                      ]}
-                    >
-                      <Text style={styles.rowLabel}>{t(option.labelKey)}</Text>
-                      {active ? (
-                        <Check color={colors.text} size={18} strokeWidth={2} />
-                      ) : null}
-                    </Pressable>
-                  );
-                })}
-              </View>
+              <LanguagePickerField
+                value={translateLang}
+                options={translateOptions}
+                onPress={() => setPicker("translation")}
+              />
               <ProviderSettings manager={providerManager} />
             </>
           ) : null}
@@ -163,6 +169,23 @@ export function SettingsScreen({
             </>
           ) : null}
         </ScrollView>
+        <LanguagePickerSheet
+          visible={picker === "ui"}
+          title={t("settings.appLanguage")}
+          value={uiLang}
+          options={uiOptions}
+          onSelect={(value) => onUiLangChange(value as UiLangPref)}
+          onClose={() => setPicker(null)}
+        />
+        <LanguagePickerSheet
+          visible={picker === "translation"}
+          title={t("settings.translationLanguage")}
+          value={translateLang}
+          options={translateOptions}
+          searchable
+          onSelect={onTranslateLangChange}
+          onClose={() => setPicker(null)}
+        />
       </View>
     </SectionFrame>
   );
@@ -187,33 +210,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 10,
     marginHorizontal: 4,
-  },
-  optionGroup: {
-    overflow: "hidden",
-    marginBottom: 18,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
-    minHeight: 48,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  rowActive: {
-    backgroundColor: colors.surfacePressed,
-  },
-  rowPressed: { opacity: 0.82 },
-  rowLabel: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: "500",
   },
   aboutBox: {
     backgroundColor: colors.surface,

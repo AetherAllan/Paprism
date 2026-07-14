@@ -1,6 +1,8 @@
 {
   "common": {
     "done": "完成",
+    "apply": "应用",
+    "close": "关闭",
     "settings": "设置",
     "change": "更换",
     "retry": "重试",
@@ -47,7 +49,12 @@
     "title": "类别",
     "hint": "可多选。信息流只显示同时属于所选全部类别的论文。",
     "search": "搜索类别",
-    "noMatches": "无匹配结果"
+    "noMatches": "无匹配结果",
+    "selectedCount": "已选 {{count}} 项",
+    "removeSelection": "移除 {{category}}",
+    "noCommonPapers": "没有同时属于所选类别的论文",
+    "noCommonPapersHint": "多类别使用严格交集。移除一个或多个类别可以扩大信息流范围。",
+    "changeSelection": "修改类别"
   },
   "settings": {
     "title": "设置",
@@ -58,6 +65,7 @@
     "langZh": "中文",
     "translationLanguage": "论文翻译语言",
     "translationHint": "点击「翻译」时使用。跟随系统则按手机语言。",
+    "searchLanguage": "搜索语言",
     "about": "关于",
     "version": "版本 {{version}}",
     "aboutBody1": "抖音式刷 arXiv 论文。设备直连 arXiv，无账号、无后端。",

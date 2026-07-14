@@ -179,7 +179,7 @@ export function SearchScreen({
               scrollOffset.current = event.nativeEvent.contentOffset.y;
             }}
             onEndReached={() => search.loadMore(false)}
-            onEndReachedThreshold={0.6}
+            onEndReachedThreshold={0.25}
             ListFooterComponent={footer}
           />
         )}
