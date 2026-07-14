@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef } from "react";
 import {
   Alert,
   Modal,
@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { AppSection } from "@/types/navigation";
 import type { Paper } from "@/types/paper";
 import type {
   DownloadSummary,
@@ -19,10 +20,14 @@ import type {
   SavedEntry,
 } from "./library";
 
-type Tab = "saved" | "history" | "downloads";
+export type LibrarySection = Extract<
+  AppSection,
+  "saved" | "history" | "downloads"
+>;
 
 type Props = {
   visible: boolean;
+  section: LibrarySection;
   saved: SavedEntry[];
   history: HistoryEntry[];
   downloads: DownloadSummary[];
@@ -32,12 +37,12 @@ type Props = {
   onOpenOffline: (entry: OfflineHtmlEntry) => void;
   onOpenPdf: (entry: PdfDownloadEntry) => void;
   onDeleteDownloads: (arxivId: string) => void;
-  onOpenSettings: () => void;
-  onClose: () => void;
+  onBack: () => void;
 };
 
 export function LibraryScreen({
   visible,
+  section,
   saved,
   history,
   downloads,
@@ -47,21 +52,32 @@ export function LibraryScreen({
   onOpenOffline,
   onOpenPdf,
   onDeleteDownloads,
-  onOpenSettings,
-  onClose,
+  onBack,
 }: Props) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<Tab>("saved");
-
+  const scrollRef = useRef<ScrollView>(null);
+  const offsets = useRef<Record<LibrarySection, number>>({
+    saved: 0,
+    history: 0,
+    downloads: 0,
+  });
   const locale = i18n.language === "zh" ? "zh-CN" : "en";
-  const items = tab === "saved" ? saved : tab === "history" ? history : downloads;
+  const items =
+    section === "saved" ? saved : section === "history" ? history : downloads;
   const emptyText =
-    tab === "saved"
+    section === "saved"
       ? t("library.emptySaved")
-      : tab === "history"
+      : section === "history"
         ? t("library.emptyHistory")
         : t("library.emptyDownloads");
+  const title = t(
+    section === "saved"
+      ? "library.tabSaved"
+      : section === "history"
+        ? "library.tabHistory"
+        : "library.tabDownloads",
+  );
 
   const confirmClear = () => {
     Alert.alert(t("library.clearHistoryTitle"), t("library.clearHistoryBody"), [
@@ -95,7 +111,14 @@ export function LibraryScreen({
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      allowSwipeDismissal
+      onRequestClose={onBack}
+      onShow={() =>
+        scrollRef.current?.scrollTo({
+          y: offsets.current[section],
+          animated: false,
+        })
+      }
     >
       <View
         style={[
@@ -104,41 +127,24 @@ export function LibraryScreen({
         ]}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>{t("library.title")}</Text>
-          <Pressable onPress={onClose} hitSlop={12}>
-            <Text style={styles.done}>{t("common.done")}</Text>
-          </Pressable>
+          <Text style={styles.title}>{title}</Text>
         </View>
 
-        <View style={styles.tabs}>
-          {(
-            [
-              ["saved", t("library.tabSaved")],
-              ["history", t("library.tabHistory")],
-              ["downloads", t("library.tabDownloads")],
-            ] as const
-          ).map(([id, label]) => (
-            <Pressable
-              key={id}
-              onPress={() => setTab(id)}
-              style={[styles.tab, tab === id && styles.tabActive]}
-            >
-              <Text style={[styles.tabText, tab === id && styles.tabTextActive]}>
-                {label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {tab === "history" ? (
+        {section === "history" ? (
           <Pressable onPress={confirmClear} style={styles.clearRow}>
             <Text style={styles.clearText}>{t("library.clearHistory")}</Text>
           </Pressable>
         ) : null}
 
         <ScrollView
+          key={section}
+          ref={scrollRef}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={32}
+          onScroll={(event) => {
+            offsets.current[section] = event.nativeEvent.contentOffset.y;
+          }}
         >
           {items.length === 0 ? (
             <Text style={styles.empty}>{emptyText}</Text>
@@ -149,26 +155,26 @@ export function LibraryScreen({
                 title={item.title}
                 subtitle={item.authors.slice(0, 2).join(", ")}
                 meta={
-                  tab === "downloads"
+                  section === "downloads"
                     ? downloadMeta(item as DownloadSummary, locale)
                     : formatTime(entryTime(item), locale)
                 }
                 onPress={() =>
-                  tab === "downloads"
+                  section === "downloads"
                     ? openDownload(item as DownloadSummary)
                     : onOpenPaper(item)
                 }
                 actionLabel={
-                  tab === "saved"
+                  section === "saved"
                     ? t("library.unsave")
-                    : tab === "downloads"
+                    : section === "downloads"
                       ? t("library.manage")
                       : undefined
                 }
                 onAction={
-                  tab === "saved"
+                  section === "saved"
                     ? () => onUnsave(item.arxivId)
-                    : tab === "downloads"
+                    : section === "downloads"
                       ? () => confirmDeleteDownload(item as DownloadSummary)
                       : undefined
                 }
@@ -177,15 +183,6 @@ export function LibraryScreen({
           )}
         </ScrollView>
 
-        <Pressable
-          onPress={() => {
-            onClose();
-            onOpenSettings();
-          }}
-          style={styles.settingsLink}
-        >
-          <Text style={styles.settingsText}>{t("common.settings")}</Text>
-        </Pressable>
       </View>
     </Modal>
   );
@@ -262,9 +259,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#111113",
   },
   header: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 10,
   },
@@ -272,36 +267,6 @@ const styles = StyleSheet.create({
     color: "#fafafa",
     fontSize: 20,
     fontWeight: "700",
-  },
-  done: {
-    color: "#a1a1aa",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  tabs: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    backgroundColor: "#1c1c1f",
-    borderRadius: 8,
-    padding: 3,
-    gap: 2,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: "center",
-    borderRadius: 6,
-  },
-  tabActive: {
-    backgroundColor: "#27272a",
-  },
-  tabText: {
-    color: "#71717a",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  tabTextActive: {
-    color: "#fafafa",
   },
   clearRow: {
     alignSelf: "flex-end",
@@ -353,18 +318,5 @@ const styles = StyleSheet.create({
   rowAction: {
     color: "#a1a1aa",
     fontSize: 13,
-  },
-  settingsLink: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderRadius: 8,
-    backgroundColor: "#1c1c1f",
-  },
-  settingsText: {
-    color: "#f4f4f5",
-    fontSize: 15,
-    fontWeight: "600",
   },
 });

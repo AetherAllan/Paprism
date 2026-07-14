@@ -10,6 +10,7 @@ TikTok-style vertical feed for [arXiv](https://arxiv.org) papers. **Android-firs
 
 - Vertical swipe through paper cards (title, authors, abstract)
 - Category multi-select (**AND** intersection on the API query)
+- Online arXiv search across all papers or the current category selection
 - Online and packaged offline HTML reader with lazy in-page bilingual translation
 - BYOK OpenRouter / OpenAI-compatible profiles; keys use encrypted device storage
 - Library: saved, history, offline HTML, and PDF downloads (app storage + Android SAF)
@@ -27,7 +28,7 @@ Requires [Bun](https://bun.sh) and an Android device/emulator with network acces
 
 ```bash
 bun install
-bun start
+bun run dev
 # then press `a`, or:
 bun run android
 ```

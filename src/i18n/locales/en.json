@@ -24,7 +24,24 @@
     "failedLoadPapers": "Failed to load papers",
     "loadingMore": "Loading more…",
     "retryMore": "Retry loading",
-    "endOfFeed": "You're all caught up"
+    "endOfFeed": "You're all caught up",
+    "closeMenu": "Close menu"
+  },
+  "menu": {
+    "title": "Menu",
+    "search": "Search",
+    "translation": "Translation",
+    "language": "Language"
+  },
+  "search": {
+    "placeholder": "Search titles, abstracts, or authors",
+    "scopeAll": "All arXiv",
+    "scopeCategories": "Current categories",
+    "hint": "Enter keywords to search arXiv.",
+    "loading": "Searching…",
+    "failed": "Search failed",
+    "empty": "No matching papers found.",
+    "end": "Showing {{count}} results"
   },
   "categories": {
     "title": "Categories",
@@ -66,7 +83,7 @@
     "tabHistory": "History",
     "tabDownloads": "Downloads",
     "emptySaved": "Saved papers will show up here.",
-    "emptyHistory": "Papers you open will appear here.",
+    "emptyHistory": "Papers shown in your feed or opened directly will appear here.",
     "emptyDownloads": "Downloaded PDFs will appear here.",
     "clearHistory": "Clear history",
     "clearHistoryTitle": "Clear history?",

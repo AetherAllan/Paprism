@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { Paper } from "@/types/paper";
 
 const values = new Map<string, string>();
 mock.module("@react-native-async-storage/async-storage", () => ({
@@ -13,7 +14,18 @@ mock.module("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
-const { loadPdfDownloads } = await import("./library");
+const { HISTORY_CAP, loadPdfDownloads, upsertHistory } = await import("./library");
+
+const paper = (arxivId: string): Paper => ({
+  arxivId,
+  title: arxivId,
+  abstract: "",
+  authors: [],
+  categories: ["cs.LG"],
+  published: "2026-01-01T00:00:00Z",
+  updated: "2026-01-01T00:00:00Z",
+  pdfUrl: `https://export.arxiv.org/pdf/${arxivId}`,
+});
 
 describe("download metadata migration", () => {
   beforeEach(() => values.clear());
@@ -43,5 +55,22 @@ describe("download metadata migration", () => {
     });
     expect(values.has("arxivtok.downloads")).toBe(false);
     expect(JSON.parse(values.get("arxivtok.pdfDownloads") ?? "[]")[0]).not.toHaveProperty("id");
+  });
+});
+
+describe("paper history", () => {
+  test("deduplicates revisits, moves them first, and enforces the cap", () => {
+    let history = upsertHistory([], paper("first"));
+    history = upsertHistory(history, paper("second"));
+    history = upsertHistory(history, paper("first"));
+
+    expect(history.map((item) => item.arxivId)).toEqual(["first", "second"]);
+
+    history = [];
+    for (let index = 0; index < HISTORY_CAP + 5; index += 1) {
+      history = upsertHistory(history, paper(String(index)));
+    }
+    expect(history).toHaveLength(HISTORY_CAP);
+    expect(history[0]?.arxivId).toBe(String(HISTORY_CAP + 4));
   });
 });

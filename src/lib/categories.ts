@@ -229,7 +229,10 @@ export function normalizeCategories(ids: string[]): string[] {
 /** arXiv API search_query: AND intersection of selected cats. */
 export function categoriesToSearchQuery(ids: string[]): string {
   const cats = normalizeCategories(ids);
-  if (cats.length === 1 && cats[0] === "all") return "all:*";
+  // arXiv currently returns HTTP 500 for `all:*`. Every paper has a title,
+  // so the title wildcard is the equivalent all-papers query without relying
+  // on that broken endpoint behavior.
+  if (cats.length === 1 && cats[0] === "all") return "ti:*";
   if (cats.length === 1) return `cat:${cats[0]}`;
   return cats.map((c) => `cat:${c}`).join(" AND ");
 }

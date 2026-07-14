@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -8,16 +8,29 @@ import { CategoryPicker } from "@/features/categories/CategoryPicker";
 import { LoadingScreen } from "@/features/feed/LoadingScreen";
 import { PaperFeed } from "@/features/feed/PaperFeed";
 import { usePaperFeed } from "@/features/feed/usePaperFeed";
-import { LibraryScreen } from "@/features/library/LibraryScreen";
+import {
+  LibraryScreen,
+  type LibrarySection,
+} from "@/features/library/LibraryScreen";
 import { useLibrary } from "@/features/library/useLibrary";
-import { SettingsScreen } from "@/features/settings/SettingsScreen";
+import { AppMenu } from "@/features/menu/AppMenu";
+import { SearchScreen } from "@/features/search/SearchScreen";
+import {
+  SettingsScreen,
+  type SettingsSection,
+} from "@/features/settings/SettingsScreen";
 import { useProviderProfiles } from "@/features/settings/useProviderProfiles";
 import { PaperViewer } from "@/features/viewer/PaperViewer";
 import { useAppPrefs } from "@/shared/useAppPrefs";
+import type { AppSection } from "@/types/navigation";
 import type { Paper } from "@/types/paper";
 import type { OfflineHtmlEntry, PdfDownloadEntry } from "@/features/library/library";
 
-type ViewerState = { paper: Paper; sourceUri?: string };
+type ViewerState = {
+  paper: Paper;
+  sourceUri?: string;
+  returnTo?: AppSection;
+};
 
 export default function App() {
   const { t } = useTranslation();
@@ -30,8 +43,8 @@ export default function App() {
     reset,
   } = useAppPrefs();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<AppSection | null>(null);
   const [viewer, setViewer] = useState<ViewerState | null>(null);
   const providerManager = useProviderProfiles();
 
@@ -57,19 +70,31 @@ export default function App() {
     cancelDownload,
   } = useLibrary();
   const feed = usePaperFeed(prefs.categories);
+  const visibleFeedPaper = feed.papers[feed.index];
+
+  useEffect(() => {
+    if (!libraryReady || !visibleFeedPaper) return;
+    // Record the paper only when the visible card identity changes. Appending
+    // a prefetched page must not make the current paper look newly viewed. We
+    // also wait for persisted history to load so this write cannot be replaced
+    // by useLibrary's initial hydration.
+    void recordHistory(visibleFeedPaper);
+  }, [libraryReady, visibleFeedPaper?.arxivId, recordHistory]);
 
   const openPaper = useCallback(
-    (paper: Paper) => {
+    (paper: Paper, returnTo?: AppSection) => {
       void recordHistory(paper);
-      setViewer({ paper });
+      if (returnTo) setActiveSection(null);
+      setViewer({ paper, returnTo });
     },
     [recordHistory],
   );
 
   const openOffline = useCallback(
-    (entry: OfflineHtmlEntry) => {
+    (entry: OfflineHtmlEntry, returnTo?: AppSection) => {
       void recordHistory(entry);
-      setViewer({ paper: entry, sourceUri: entry.entryUri });
+      if (returnTo) setActiveSection(null);
+      setViewer({ paper: entry, sourceUri: entry.entryUri, returnTo });
     },
     [recordHistory],
   );
@@ -86,17 +111,20 @@ export default function App() {
   );
 
   const onDownload = useCallback(
-    (paper: Paper) => {
+    (paper: Paper, returnTo?: AppSection) => {
       const offline = getOfflineHtml(paper.arxivId);
       if (offline) {
-        openOffline(offline);
+        openOffline(offline, returnTo);
         return;
       }
       Alert.alert(t("library.downloadChoiceTitle"), paper.title, [
         { text: t("common.cancel"), style: "cancel" },
         {
           text: t("library.downloadHtml"),
-          onPress: () => void downloadHtml(paper).then(openOffline).catch(showError),
+          onPress: () =>
+            void downloadHtml(paper)
+              .then((entry) => openOffline(entry, returnTo))
+              .catch(showError),
         },
         {
           text: t("library.downloadPdf"),
@@ -106,6 +134,26 @@ export default function App() {
     },
     [downloadHtml, downloadPdf, getOfflineHtml, openOffline, showError, t],
   );
+
+  const openMenu = useCallback(() => {
+    setActiveSection(null);
+    setMenuOpen(true);
+  }, []);
+
+  const libraryVisible =
+    activeSection === "saved" ||
+    activeSection === "history" ||
+    activeSection === "downloads";
+  const librarySection: LibrarySection = libraryVisible
+    ? activeSection
+    : "saved";
+  const settingsVisible =
+    activeSection === "translation" ||
+    activeSection === "language" ||
+    activeSection === "about";
+  const settingsSection: SettingsSection = settingsVisible
+    ? activeSection
+    : "about";
 
   const onOpenPdf = useCallback(
     async (entry: PdfDownloadEntry) => {
@@ -144,7 +192,7 @@ export default function App() {
           onRetry={feed.retry}
           categories={prefs.categories}
           onOpenCategories={() => setPickerOpen(true)}
-          onOpenLibrary={() => setLibraryOpen(true)}
+          onOpenMenu={() => setMenuOpen(true)}
           onRead={openPaper}
           isSaved={isSaved}
           hasOfflineHtml={hasOfflineHtml}
@@ -162,34 +210,52 @@ export default function App() {
           onClose={() => setPickerOpen(false)}
         />
         <LibraryScreen
-          visible={libraryOpen}
+          visible={libraryVisible}
+          section={librarySection}
           saved={saved}
           history={history}
           downloads={downloads}
           onUnsave={unsave}
           onClearHistory={clearHistory}
           onOpenPaper={(paper) => {
-            setLibraryOpen(false);
-            openPaper(paper);
+            openPaper(paper, librarySection);
           }}
           onOpenOffline={(entry) => {
-            setLibraryOpen(false);
-            openOffline(entry);
+            openOffline(entry, librarySection);
           }}
           onOpenPdf={(entry) => void onOpenPdf(entry)}
           onDeleteDownloads={(arxivId) => void deleteDownloads(arxivId)}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onClose={() => setLibraryOpen(false)}
+          onBack={openMenu}
+        />
+        <SearchScreen
+          visible={activeSection === "search"}
+          categories={prefs.categories}
+          isSaved={isSaved}
+          hasOfflineHtml={hasOfflineHtml}
+          hasPdf={hasPdf}
+          onRead={(paper) => openPaper(paper, "search")}
+          onToggleSave={toggleSave}
+          onDownload={(paper) => onDownload(paper, "search")}
+          onBack={openMenu}
         />
         <SettingsScreen
-          visible={settingsOpen}
+          visible={settingsVisible}
+          section={settingsSection}
           uiLang={prefs.uiLang}
           translateLang={prefs.translateLang}
           onUiLangChange={setUiLang}
           onTranslateLangChange={setTranslateLang}
           onReset={reset}
-          onClose={() => setSettingsOpen(false)}
+          onBack={openMenu}
           providerManager={providerManager}
+        />
+        <AppMenu
+          visible={menuOpen}
+          onSelect={(section) => {
+            setMenuOpen(false);
+            setActiveSection(section);
+          }}
+          onClose={() => setMenuOpen(false)}
         />
         <PaperViewer
           paper={viewer?.paper ?? null}
@@ -199,9 +265,13 @@ export default function App() {
           getProviderApiKey={providerManager.getApiKey}
           onOpenSettings={() => {
             setViewer(null);
-            setSettingsOpen(true);
+            setActiveSection("translation");
           }}
-          onClose={() => setViewer(null)}
+          onClose={() => {
+            const returnTo = viewer?.returnTo;
+            setViewer(null);
+            if (returnTo) setActiveSection(returnTo);
+          }}
         />
       </GestureHandlerRootView>
     </SafeAreaProvider>

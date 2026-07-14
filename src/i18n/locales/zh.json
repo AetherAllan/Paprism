@@ -24,7 +24,24 @@
     "failedLoadPapers": "加载论文失败",
     "loadingMore": "正在加载更多…",
     "retryMore": "重试加载",
-    "endOfFeed": "已经看完了"
+    "endOfFeed": "已经看完了",
+    "closeMenu": "关闭菜单"
+  },
+  "menu": {
+    "title": "菜单",
+    "search": "搜索",
+    "translation": "翻译",
+    "language": "语言"
+  },
+  "search": {
+    "placeholder": "搜索标题、摘要或作者",
+    "scopeAll": "全部 arXiv",
+    "scopeCategories": "当前分类",
+    "hint": "输入关键词后搜索 arXiv。",
+    "loading": "正在搜索…",
+    "failed": "搜索失败",
+    "empty": "没有找到匹配的论文。",
+    "end": "已显示 {{count}} 篇结果"
   },
   "categories": {
     "title": "类别",
@@ -66,7 +83,7 @@
     "tabHistory": "历史",
     "tabDownloads": "下载",
     "emptySaved": "收藏的论文会出现在这里。",
-    "emptyHistory": "打开过的论文会出现在这里。",
+    "emptyHistory": "在信息流看过或主动打开过的论文会出现在这里。",
     "emptyDownloads": "下载的 PDF 会出现在这里。",
     "clearHistory": "清空历史",
     "clearHistoryTitle": "清空浏览历史？",

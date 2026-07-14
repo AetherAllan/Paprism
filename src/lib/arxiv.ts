@@ -20,6 +20,7 @@ export type FetchPageOptions = {
   start?: number;
   maxResults?: number;
   query?: string;
+  sortBy?: "relevance" | "lastUpdatedDate" | "submittedDate";
 };
 
 export async function fetchPaperPage(options: FetchPageOptions = {}): Promise<{
@@ -32,6 +33,7 @@ export async function fetchPaperPage(options: FetchPageOptions = {}): Promise<{
     start = 0,
     maxResults = 30,
     query,
+    sortBy = "submittedDate",
   } = options;
 
   const searchQuery = query ?? categoriesToSearchQuery(categories);
@@ -40,7 +42,7 @@ export async function fetchPaperPage(options: FetchPageOptions = {}): Promise<{
     search_query: searchQuery,
     start: String(start),
     max_results: String(maxResults),
-    sortBy: "submittedDate",
+    sortBy,
     sortOrder: "descending",
   });
 

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { UiLangPref } from "@/i18n";
 import type { TranslateLangPref } from "@/lib/storage";
+import type { AppSection } from "@/types/navigation";
 import { ProviderSettings } from "./ProviderSettings";
 import type { useProviderProfiles } from "./useProviderProfiles";
 
@@ -30,34 +31,49 @@ const UI_LANG_OPTIONS: { id: UiLangPref; labelKey: string }[] = [
 
 type Props = {
   visible: boolean;
+  section: SettingsSection;
   uiLang: UiLangPref;
   translateLang: TranslateLangPref;
   onUiLangChange: (lang: UiLangPref) => void;
   onTranslateLangChange: (lang: TranslateLangPref) => void;
   onReset: () => void;
-  onClose: () => void;
+  onBack: () => void;
   providerManager: ReturnType<typeof useProviderProfiles>;
 };
 
+export type SettingsSection = Extract<
+  AppSection,
+  "translation" | "language" | "about"
+>;
+
 export function SettingsScreen({
   visible,
+  section,
   uiLang,
   translateLang,
   onUiLangChange,
   onTranslateLangChange,
   onReset,
-  onClose,
+  onBack,
   providerManager,
 }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const title = t(
+    section === "translation"
+      ? "menu.translation"
+      : section === "language"
+        ? "menu.language"
+        : "settings.about",
+  );
 
   return (
     <Modal
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      allowSwipeDismissal
+      onRequestClose={onBack}
     >
       <View
         style={[
@@ -66,75 +82,77 @@ export function SettingsScreen({
         ]}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>{t("settings.title")}</Text>
-          <Pressable onPress={onClose} hitSlop={12} style={styles.close}>
-            <Text style={styles.closeText}>{t("common.done")}</Text>
-          </Pressable>
+          <Text style={styles.title}>{title}</Text>
         </View>
 
         <ScrollView
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.section}>{t("settings.appLanguage")}</Text>
-          <Text style={styles.hint}>{t("settings.appLanguageHint")}</Text>
-          {UI_LANG_OPTIONS.map((opt) => {
-            const active = opt.id === uiLang;
-            return (
-              <Pressable
-                key={opt.id}
-                onPress={() => onUiLangChange(opt.id)}
-                style={[styles.row, active && styles.rowActive]}
-              >
-                <Text style={styles.rowLabel}>{t(opt.labelKey)}</Text>
-                {active ? <Text style={styles.check}>✓</Text> : null}
-              </Pressable>
-            );
-          })}
+          {section === "language" ? (
+            <>
+              <Text style={styles.section}>{t("settings.appLanguage")}</Text>
+              <Text style={styles.hint}>{t("settings.appLanguageHint")}</Text>
+              {UI_LANG_OPTIONS.map((opt) => {
+                const active = opt.id === uiLang;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => onUiLangChange(opt.id)}
+                    style={[styles.row, active && styles.rowActive]}
+                  >
+                    <Text style={styles.rowLabel}>{t(opt.labelKey)}</Text>
+                    {active ? <Text style={styles.check}>✓</Text> : null}
+                  </Pressable>
+                );
+              })}
+            </>
+          ) : null}
 
-          <Text style={[styles.section, styles.sectionSpaced]}>
-            {t("settings.translationLanguage")}
-          </Text>
-          <Text style={styles.hint}>{t("settings.translationHint")}</Text>
-          {TRANSLATE_OPTIONS.map((option) => {
-            const active = option.id === translateLang;
-            return (
-              <Pressable
-                key={option.id}
-                onPress={() => onTranslateLangChange(option.id)}
-                style={[styles.row, active && styles.rowActive]}
-              >
-                <Text style={styles.rowLabel}>
-                  {t(option.labelKey)}
+          {section === "translation" ? (
+            <>
+              <Text style={styles.section}>{t("settings.translationLanguage")}</Text>
+              <Text style={styles.hint}>{t("settings.translationHint")}</Text>
+              {TRANSLATE_OPTIONS.map((option) => {
+                const active = option.id === translateLang;
+                return (
+                  <Pressable
+                    key={option.id}
+                    onPress={() => onTranslateLangChange(option.id)}
+                    style={[styles.row, active && styles.rowActive]}
+                  >
+                    <Text style={styles.rowLabel}>{t(option.labelKey)}</Text>
+                    {active ? <Text style={styles.check}>✓</Text> : null}
+                  </Pressable>
+                );
+              })}
+              <ProviderSettings manager={providerManager} />
+            </>
+          ) : null}
+
+          {section === "about" ? (
+            <>
+              <Text style={styles.section}>{t("settings.about")}</Text>
+              <View style={styles.aboutBox}>
+                <Text style={styles.aboutTitle}>ArxivTok</Text>
+                <Text style={styles.aboutBody}>
+                  {t("settings.version", { version: "1.0.0" })}
                 </Text>
-                {active ? <Text style={styles.check}>✓</Text> : null}
+                <Text style={styles.aboutBody}>{t("settings.aboutBody1")}</Text>
+                <Text style={styles.aboutBody}>{t("settings.aboutBody2")}</Text>
+              </View>
+
+              <Pressable
+                onPress={onReset}
+                style={({ pressed }) => [
+                  styles.resetBtn,
+                  pressed && styles.resetPressed,
+                ]}
+              >
+                <Text style={styles.resetText}>{t("settings.reset")}</Text>
               </Pressable>
-            );
-          })}
-
-          <ProviderSettings manager={providerManager} />
-
-          <Text style={[styles.section, styles.sectionSpaced]}>
-            {t("settings.about")}
-          </Text>
-          <View style={styles.aboutBox}>
-            <Text style={styles.aboutTitle}>ArxivTok</Text>
-            <Text style={styles.aboutBody}>
-              {t("settings.version", { version: "1.0.0" })}
-            </Text>
-            <Text style={styles.aboutBody}>{t("settings.aboutBody1")}</Text>
-            <Text style={styles.aboutBody}>{t("settings.aboutBody2")}</Text>
-          </View>
-
-          <Pressable
-            onPress={onReset}
-            style={({ pressed }) => [
-              styles.resetBtn,
-              pressed && styles.resetPressed,
-            ]}
-          >
-            <Text style={styles.resetText}>{t("settings.reset")}</Text>
-          </Pressable>
+            </>
+          ) : null}
         </ScrollView>
       </View>
     </Modal>
@@ -147,9 +165,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#111113",
   },
   header: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 10,
   },
@@ -157,15 +173,6 @@ const styles = StyleSheet.create({
     color: "#fafafa",
     fontSize: 20,
     fontWeight: "700",
-  },
-  close: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  closeText: {
-    color: "#a1a1aa",
-    fontSize: 16,
-    fontWeight: "600",
   },
   list: {
     paddingHorizontal: 16,
@@ -177,9 +184,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 6,
     marginLeft: 4,
-  },
-  sectionSpaced: {
-    marginTop: 28,
   },
   hint: {
     color: "#71717a",

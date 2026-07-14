@@ -31,7 +31,7 @@ type Props = {
   onRetry: () => void;
   categories: string[];
   onOpenCategories: () => void;
-  onOpenLibrary: () => void;
+  onOpenMenu: () => void;
   onRead: (paper: Paper) => void;
   isSaved: (arxivId: string) => boolean;
   hasOfflineHtml: (arxivId: string) => boolean;
@@ -54,7 +54,7 @@ export function PaperFeed({
   onRetry,
   categories,
   onOpenCategories,
-  onOpenLibrary,
+  onOpenMenu,
   onRead,
   isSaved,
   hasOfflineHtml,
@@ -142,8 +142,8 @@ export function PaperFeed({
           ) : paginationStatus === "exhausted" ? (
             <Text style={styles.pageStatus}>{t("common.endOfFeed")}</Text>
           ) : null}
-          <Pressable onPress={onOpenLibrary} hitSlop={8}>
-            <Text style={styles.settings}>{t("library.title")}</Text>
+          <Pressable onPress={onOpenMenu} hitSlop={8}>
+            <Text style={styles.settings}>{t("menu.title")}</Text>
           </Pressable>
         </View>
       </View>
