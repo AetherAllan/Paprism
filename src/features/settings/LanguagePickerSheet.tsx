@@ -17,10 +17,7 @@ import X from "lucide-react-native/icons/x";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radii } from "@/shared/theme";
-import {
-  filterLanguageOptions,
-  type LanguageOption,
-} from "./languagePicker";
+import { filterLanguageOptions, type LanguageOption } from "./languagePicker";
 
 type Props = {
   visible: boolean;
@@ -99,7 +96,9 @@ export function LanguagePickerSheet({
           style={styles.backdrop}
           onPress={requestClose}
         />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <View
+          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}
+        >
           <View style={styles.handle} />
           <View style={styles.header}>
             <Text style={styles.title}>{title}</Text>

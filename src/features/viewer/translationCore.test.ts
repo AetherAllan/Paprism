@@ -7,13 +7,23 @@ import {
 
 describe("translation protocol", () => {
   test("splits oversized blocks and reassembles them in order", () => {
-    const batches = prepareTranslationBatches([{ id: "p1", text: "a ".repeat(20) }], 6, 12);
+    const batches = prepareTranslationBatches(
+      [{ id: "p1", text: "a ".repeat(20) }],
+      6,
+      12,
+    );
     expect(batches.length).toBeGreaterThan(1);
     const translations = new Map(
       batches.flat().map((part) => [part.id, `T${part.index}`]),
     );
     expect(reassembleTranslations(batches, translations)).toEqual([
-      { id: "p1", text: batches.flat().map((part) => `T${part.index}`).join("\n") },
+      {
+        id: "p1",
+        text: batches
+          .flat()
+          .map((part) => `T${part.index}`)
+          .join("\n"),
+      },
     ]);
   });
 
@@ -21,11 +31,16 @@ describe("translation protocol", () => {
     const table = [
       "| Name | Description |",
       "| --- | --- |",
-      ...Array.from({ length: 8 }, (_, index) =>
-        `| row ${index} | ${"word ".repeat(8)} |`,
+      ...Array.from(
+        { length: 8 },
+        (_, index) => `| row ${index} | ${"word ".repeat(8)} |`,
       ),
     ].join("\n");
-    const parts = prepareTranslationBatches([{ id: "table", text: table }], 6, 90).flat();
+    const parts = prepareTranslationBatches(
+      [{ id: "table", text: table }],
+      6,
+      90,
+    ).flat();
     expect(parts.length).toBeGreaterThan(1);
     expect(parts.every((part) => !part.text.startsWith("word"))).toBe(true);
   });

@@ -54,7 +54,10 @@ export async function fetchPaperHtml(
       if (new TextEncoder().encode(html).byteLength > MAX_HTML_BYTES) {
         throw new Error("arXiv HTML exceeds the 15 MB reader limit");
       }
-      return { html, sourceUrl: response.url || `https://arxiv.org/html/${paper.arxivId}` };
+      return {
+        html,
+        sourceUrl: response.url || `https://arxiv.org/html/${paper.arxivId}`,
+      };
     } catch (error) {
       // Callers intentionally ignore AbortError for navigation cancellation.
       // Convert only our internal deadline to a visible, retryable failure.

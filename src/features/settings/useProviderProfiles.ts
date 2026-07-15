@@ -14,7 +14,9 @@ import {
 
 export function useProviderProfiles() {
   const [profiles, setProfiles] = useState<ProviderProfile[]>([]);
-  const [activeProfileId, setActiveProfileIdState] = useState<string | null>(null);
+  const [activeProfileId, setActiveProfileIdState] = useState<string | null>(
+    null,
+  );
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -57,7 +59,7 @@ export function useProviderProfiles() {
       const nextProfiles = profiles.filter((item) => item.id !== profileId);
       const nextActive =
         activeProfileId === profileId
-          ? nextProfiles[0]?.id ?? null
+          ? (nextProfiles[0]?.id ?? null)
           : activeProfileId;
       await deleteProviderApiKey(profileId);
       await persistProviderState({

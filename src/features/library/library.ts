@@ -72,7 +72,9 @@ function coercePaper(raw: Record<string, unknown>): Paper | null {
       ? raw.authors.filter((item): item is string => typeof item === "string")
       : [],
     categories: Array.isArray(raw.categories)
-      ? raw.categories.filter((item): item is string => typeof item === "string")
+      ? raw.categories.filter(
+          (item): item is string => typeof item === "string",
+        )
       : [],
     published: typeof raw.published === "string" ? raw.published : "",
     updated: typeof raw.updated === "string" ? raw.updated : "",
@@ -94,7 +96,8 @@ export async function loadHistory(): Promise<HistoryEntry[]> {
 function coercePdf(raw: Record<string, unknown>): PdfDownloadEntry | null {
   const paper = coercePaper(raw);
   if (!paper || typeof raw.localUri !== "string") return null;
-  const exportUri = typeof raw.exportUri === "string" ? raw.exportUri : undefined;
+  const exportUri =
+    typeof raw.exportUri === "string" ? raw.exportUri : undefined;
   return {
     ...paper,
     localUri: raw.localUri,
@@ -107,14 +110,17 @@ function coercePdf(raw: Record<string, unknown>): PdfDownloadEntry | null {
 
 export async function loadPdfDownloads(): Promise<PdfDownloadEntry[]> {
   const current = await AsyncStorage.getItem(KEYS.pdfDownloads);
-  const legacy = current === null ? await AsyncStorage.getItem(KEYS.legacyDownloads) : null;
+  const legacy =
+    current === null ? await AsyncStorage.getItem(KEYS.legacyDownloads) : null;
   let parsed: unknown = [];
   try {
     parsed = JSON.parse(current ?? legacy ?? "[]") as unknown;
   } catch {
     // Corrupt download metadata must not prevent the rest of the library loading.
   }
-  const entries = records(parsed).map(coercePdf).filter((item) => item !== null);
+  const entries = records(parsed)
+    .map(coercePdf)
+    .filter((item) => item !== null);
   if (current === null && legacy !== null) {
     await enqueueStorageWrite(async () => {
       await AsyncStorage.setItem(KEYS.pdfDownloads, JSON.stringify(entries));
@@ -142,7 +148,8 @@ function coerceOfflinePaper(
     packageDir: raw.packageDir,
     sourceHash: raw.sourceHash,
     byteSize: typeof raw.byteSize === "number" ? raw.byteSize : 0,
-    formatVersion: typeof raw.formatVersion === "number" ? raw.formatVersion : 1,
+    formatVersion:
+      typeof raw.formatVersion === "number" ? raw.formatVersion : 1,
     downloadedAt:
       typeof raw.downloadedAt === "number" ? raw.downloadedAt : Date.now(),
   };
@@ -185,7 +192,10 @@ export function removeSaved(list: SavedEntry[], arxivId: string): SavedEntry[] {
   return list.filter((item) => item.arxivId !== arxivId);
 }
 
-export function upsertHistory(list: HistoryEntry[], paper: Paper): HistoryEntry[] {
+export function upsertHistory(
+  list: HistoryEntry[],
+  paper: Paper,
+): HistoryEntry[] {
   return [
     { ...paper, viewedAt: Date.now() },
     ...list.filter((item) => item.arxivId !== paper.arxivId),

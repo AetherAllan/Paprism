@@ -48,9 +48,8 @@ async function ensureSafDir(): Promise<string | null> {
 
   // Hint toward Download/ in the picker when possible
   const initial = StorageAccessFramework.getUriForDirectoryInRoot("Download");
-  const perm = await StorageAccessFramework.requestDirectoryPermissionsAsync(
-    initial,
-  );
+  const perm =
+    await StorageAccessFramework.requestDirectoryPermissionsAsync(initial);
   if (!perm.granted || !perm.directoryUri) return null;
   await setDownloadsDirUri(perm.directoryUri);
   return perm.directoryUri;
@@ -79,7 +78,9 @@ async function copyToSaf(
  * Always keeps a copy under app Documents/Downloads/.
  * On Android, also tries SAF → user Download folder (once-granted).
  */
-export async function downloadPaperPdf(paper: Paper): Promise<PdfDownloadEntry> {
+export async function downloadPaperPdf(
+  paper: Paper,
+): Promise<PdfDownloadEntry> {
   await ensureAppDownloadsDir();
   const localUri = localPdfPath(paper.arxivId);
 
@@ -88,7 +89,8 @@ export async function downloadPaperPdf(paper: Paper): Promise<PdfDownloadEntry> 
     await scheduleArxiv(async () => {
       const res = await downloadAsync(paper.pdfUrl, localUri, {
         headers: {
-          "User-Agent": "ArxivTok/1.0 (Android; educational; contact: local-dev)",
+          "User-Agent":
+            "ArxivTok/1.0 (Android; educational; contact: local-dev)",
         },
       });
       if (res.status !== 200) {
@@ -123,7 +125,9 @@ export async function downloadPaperPdf(paper: Paper): Promise<PdfDownloadEntry> 
 
 export async function openPdf(entry: PdfDownloadEntry): Promise<void> {
   if (Platform.OS !== "android") {
-    throw new Error("Opening downloaded PDFs is currently supported on Android only");
+    throw new Error(
+      "Opening downloaded PDFs is currently supported on Android only",
+    );
   }
   const uri = entry.exportUri ?? (await getContentUriAsync(entry.localUri));
   // Grant the chosen PDF app temporary read access to our app-private file.
@@ -139,6 +143,8 @@ export async function deletePdfFiles(entry: PdfDownloadEntry): Promise<void> {
   if (entry.exportUri) {
     // SAF providers may revoke delete permission later. The app-owned copy and
     // metadata must still be removed even if the public export remains.
-    await deleteAsync(entry.exportUri, { idempotent: true }).catch(() => undefined);
+    await deleteAsync(entry.exportUri, { idempotent: true }).catch(
+      () => undefined,
+    );
   }
 }

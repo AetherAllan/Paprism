@@ -14,11 +14,17 @@ afterEach(() => {
 
 describe("native reader translation client", () => {
   test("retries only transient provider failures", () => {
-    expect(isRetryableTranslationError(new Error("Translation HTTP 429"))).toBe(true);
-    expect(isRetryableTranslationError(new Error("Provider returned no text response"))).toBe(
+    expect(isRetryableTranslationError(new Error("Translation HTTP 429"))).toBe(
       true,
     );
-    expect(isRetryableTranslationError(new Error("Translation HTTP 401"))).toBe(false);
+    expect(
+      isRetryableTranslationError(
+        new Error("Provider returned no text response"),
+      ),
+    ).toBe(true);
+    expect(isRetryableTranslationError(new Error("Translation HTTP 401"))).toBe(
+      false,
+    );
     expect(
       isRetryableTranslationError(
         new Error("Translation result does not match the active document"),

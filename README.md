@@ -117,10 +117,10 @@ Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml). A si
 
 Planned work lives in [`Roadmap/`](Roadmap/):
 
-| Doc | Topic |
-|-----|--------|
+| Doc                                                          | Topic                                                         |
+| ------------------------------------------------------------ | ------------------------------------------------------------- |
 | [immersive-translation.md](Roadmap/immersive-translation.md) | Native bilingual reader architecture and translation behavior |
-| [release.md](Roadmap/release.md) | ABI-specific APKs and release artifact verification |
+| [release.md](Roadmap/release.md)                             | ABI-specific APKs and release artifact verification           |
 
 ## License
 

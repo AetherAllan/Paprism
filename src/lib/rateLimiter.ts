@@ -10,7 +10,10 @@ export class RateLimiter {
 
   schedule<T>(fn: () => Promise<T>): Promise<T> {
     const run = async (): Promise<T> => {
-      const wait = Math.max(0, this.minIntervalMs - (Date.now() - this.lastStart));
+      const wait = Math.max(
+        0,
+        this.minIntervalMs - (Date.now() - this.lastStart),
+      );
       if (wait > 0) {
         await sleep(wait);
       }

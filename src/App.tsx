@@ -25,7 +25,10 @@ import { useAppPrefs } from "@/shared/useAppPrefs";
 import { colors } from "@/shared/theme";
 import type { AppSection } from "@/types/navigation";
 import type { Paper } from "@/types/paper";
-import type { OfflinePaperEntry, PdfDownloadEntry } from "@/features/library/library";
+import type {
+  OfflinePaperEntry,
+  PdfDownloadEntry,
+} from "@/features/library/library";
 
 type ViewerState = {
   paper: Paper;
@@ -123,9 +126,7 @@ export default function App() {
         {
           text: t("library.downloadOffline"),
           onPress: () =>
-            void downloadOffline(paper)
-              .then(openOffline)
-              .catch(showError),
+            void downloadOffline(paper).then(openOffline).catch(showError),
         },
         {
           text: t("library.downloadPdf"),

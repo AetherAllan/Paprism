@@ -3,7 +3,8 @@ const { addAbiSplits, setArchitectures } = require("./withAbiSplits");
 
 describe("withAbiSplits", () => {
   test("adds all requested ABIs and a universal APK exactly once", () => {
-    const input = 'apply plugin: "com.android.application"\n\nandroid {\n    namespace "test"\n}\n';
+    const input =
+      'apply plugin: "com.android.application"\n\nandroid {\n    namespace "test"\n}\n';
     const once = addAbiSplits(input);
     const twice = addAbiSplits(once);
     expect(twice).toBe(once);

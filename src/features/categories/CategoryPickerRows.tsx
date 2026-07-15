@@ -27,7 +27,9 @@ export const CategoryRow = memo(function CategoryRow({
       ]}
     >
       <View style={styles.rowCopy}>
-        <Text style={[styles.label, active && styles.labelActive]}>{label}</Text>
+        <Text style={[styles.label, active && styles.labelActive]}>
+          {label}
+        </Text>
         <Text style={styles.code}>{id}</Text>
       </View>
       {active ? (

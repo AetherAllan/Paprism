@@ -5,10 +5,7 @@ import RotateCcw from "lucide-react-native/icons/rotate-ccw";
 import { useTranslation } from "react-i18next";
 import { SectionFrame } from "@/features/menu/SectionFrame";
 import { deviceUiLang, type UiLangPref } from "@/i18n";
-import {
-  deviceTranslateLang,
-  type TranslateLangPref,
-} from "@/lib/storage";
+import { deviceTranslateLang, type TranslateLangPref } from "@/lib/storage";
 import { colors, radii } from "@/shared/theme";
 import type { AppSection } from "@/types/navigation";
 import { LanguagePickerField } from "./LanguagePickerField";
@@ -24,8 +21,16 @@ const TRANSLATE_OPTIONS: {
 }[] = [
   { id: "system", labelKey: "settings.tlSystem" },
   { id: "en", labelKey: "settings.tlEn", keywords: ["English"] },
-  { id: "zh-CN", labelKey: "settings.tlZhCN", keywords: ["Chinese Simplified"] },
-  { id: "zh-TW", labelKey: "settings.tlZhTW", keywords: ["Chinese Traditional"] },
+  {
+    id: "zh-CN",
+    labelKey: "settings.tlZhCN",
+    keywords: ["Chinese Simplified"],
+  },
+  {
+    id: "zh-TW",
+    labelKey: "settings.tlZhTW",
+    keywords: ["Chinese Traditional"],
+  },
   { id: "ja", labelKey: "settings.tlJa", keywords: ["Japanese"] },
   { id: "ko", labelKey: "settings.tlKo", keywords: ["Korean"] },
   { id: "es", labelKey: "settings.tlEs", keywords: ["Spanish"] },
@@ -82,7 +87,9 @@ export function SettingsScreen({
   );
   const uiOptions = useMemo<LanguageOption[]>(() => {
     const resolved = deviceUiLang();
-    const resolvedLabel = UI_LANG_OPTIONS.find((option) => option.id === resolved);
+    const resolvedLabel = UI_LANG_OPTIONS.find(
+      (option) => option.id === resolved,
+    );
     return UI_LANG_OPTIONS.map((option) => ({
       id: option.id,
       label: t(option.labelKey),
@@ -94,7 +101,9 @@ export function SettingsScreen({
   }, [t]);
   const translateOptions = useMemo<LanguageOption[]>(() => {
     const resolved = deviceTranslateLang();
-    const resolvedOption = TRANSLATE_OPTIONS.find((option) => option.id === resolved);
+    const resolvedOption = TRANSLATE_OPTIONS.find(
+      (option) => option.id === resolved,
+    );
     return TRANSLATE_OPTIONS.map((option) => ({
       id: option.id,
       label: t(option.labelKey),
@@ -129,7 +138,9 @@ export function SettingsScreen({
 
           {section === "translation" ? (
             <>
-              <Text style={styles.section}>{t("settings.translationLanguage")}</Text>
+              <Text style={styles.section}>
+                {t("settings.translationLanguage")}
+              </Text>
               <Text style={styles.hint}>{t("settings.translationHint")}</Text>
               <LanguagePickerField
                 value={translateLang}

@@ -21,17 +21,14 @@ describe("language picker", () => {
   });
 
   test("searches localized names and codes while keeping the system choice", () => {
-    expect(filterLanguageOptions(options, "english").map((item) => item.id)).toEqual([
-      "system",
-      "en",
-    ]);
-    expect(filterLanguageOptions(options, "zh-tw").map((item) => item.id)).toEqual([
-      "system",
-      "zh-TW",
-    ]);
-    expect(filterLanguageOptions(options, "繁体").map((item) => item.id)).toEqual([
-      "system",
-      "zh-TW",
-    ]);
+    expect(
+      filterLanguageOptions(options, "english").map((item) => item.id),
+    ).toEqual(["system", "en"]);
+    expect(
+      filterLanguageOptions(options, "zh-tw").map((item) => item.id),
+    ).toEqual(["system", "zh-TW"]);
+    expect(
+      filterLanguageOptions(options, "繁体").map((item) => item.id),
+    ).toEqual(["system", "zh-TW"]);
   });
 });

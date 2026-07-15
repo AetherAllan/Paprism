@@ -40,7 +40,10 @@ function extension(url: string, contentType: string): string {
   return ".bin";
 }
 
-async function fetchResource(url: string, outerSignal?: AbortSignal): Promise<Resource> {
+async function fetchResource(
+  url: string,
+  outerSignal?: AbortSignal,
+): Promise<Resource> {
   const controller = new AbortController();
   const abort = () => controller.abort();
   outerSignal?.addEventListener("abort", abort, { once: true });
@@ -57,12 +60,15 @@ async function fetchResource(url: string, outerSignal?: AbortSignal): Promise<Re
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
     const declared = Number(response.headers.get("content-length") ?? 0);
-    if (declared > MAX_RESOURCE_BYTES) throw new Error("Offline image exceeds 15 MB");
+    if (declared > MAX_RESOURCE_BYTES)
+      throw new Error("Offline image exceeds 15 MB");
     const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.byteLength > MAX_RESOURCE_BYTES) throw new Error("Offline image exceeds 15 MB");
+    if (bytes.byteLength > MAX_RESOURCE_BYTES)
+      throw new Error("Offline image exceeds 15 MB");
     return {
       bytes,
-      contentType: response.headers.get("content-type") ?? "application/octet-stream",
+      contentType:
+        response.headers.get("content-type") ?? "application/octet-stream",
     };
   } catch (error) {
     // Cancellation is silent, but an internal download deadline must reach the
@@ -102,7 +108,9 @@ function localizeAssets(
       ...block,
       assets: block.assets?.map((asset) => ({
         ...asset,
-        uri: paths.has(asset.uri) ? `${packageDir}${paths.get(asset.uri)}` : asset.uri,
+        uri: paths.has(asset.uri)
+          ? `${packageDir}${paths.get(asset.uri)}`
+          : asset.uri,
       })),
     })),
   };
@@ -142,11 +150,17 @@ export async function downloadOfflinePaper(
 
   try {
     const source = await fetchPaperHtml(paper, signal);
-    const document = parseArxivHtml(source.html, paper.arxivId, source.sourceUrl);
+    const document = parseArxivHtml(
+      source.html,
+      paper.arxivId,
+      source.sourceUrl,
+    );
     let totalBytes = 0;
     const urls = [
       ...new Set(
-        document.blocks.flatMap((block) => block.assets?.map((asset) => asset.uri) ?? []),
+        document.blocks.flatMap(
+          (block) => block.assets?.map((asset) => asset.uri) ?? [],
+        ),
       ),
     ];
     const paths = new Map<string, string>();

@@ -1,4 +1,7 @@
-import { chatCompletionsUrl, type ProviderProfile } from "@/features/settings/providerCore";
+import {
+  chatCompletionsUrl,
+  type ProviderProfile,
+} from "@/features/settings/providerCore";
 import {
   parseTranslationResponse,
   prepareTranslationBatches,
@@ -79,7 +82,8 @@ async function fetchWithOneRetry(
       clearTimeout(timeout);
       signal.removeEventListener("abort", abort);
     }
-    if (response.ok || attempt > 0 || !retryable(response.status)) return response;
+    if (response.ok || attempt > 0 || !retryable(response.status))
+      return response;
     const retryAfter = Number(response.headers.get("retry-after") ?? 0);
     await abortableDelay(
       Number.isFinite(retryAfter) && retryAfter > 0
@@ -154,14 +158,19 @@ async function translatePartBatch(
     const choice = payload.choices?.[0];
     if (choice?.finish_reason === "length") {
       if (maxTokens < 8192) continue;
-      throw new Error("Provider response exceeded the translation output limit");
+      throw new Error(
+        "Provider response exceeded the translation output limit",
+      );
     }
     const content = choice?.message?.content;
     if (typeof content !== "string") {
       if (maxTokens < 8192) continue;
       throw new Error("Provider returned no text response");
     }
-    return parseTranslationResponse(content, new Set(parts.map((part) => part.id)));
+    return parseTranslationResponse(
+      content,
+      new Set(parts.map((part) => part.id)),
+    );
   }
   throw new Error("Translation request failed");
 }
@@ -193,12 +202,15 @@ async function translateGoogleBatch(
     `${GOOGLE_URL}&tl=${encodeURIComponent(targetLang)}`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+      },
       body: body.toString(),
     },
     signal,
   );
-  if (!response.ok) throw new Error(`Google Translation HTTP ${response.status}`);
+  if (!response.ok)
+    throw new Error(`Google Translation HTTP ${response.status}`);
   let translated = googleText(await response.json());
   const results: TranslationResult[] = [];
   for (const [index, part] of parts.entries()) {

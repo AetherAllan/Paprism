@@ -18,12 +18,12 @@ const profile: ProviderProfile = {
 describe("provider configuration", () => {
   test("requires HTTPS and locks the OpenRouter endpoint", () => {
     expect(validateProfile(profile)).toBeNull();
-    expect(validateProfile({ ...profile, baseUrl: "http://example.com/v1" })).toBe(
-      "Endpoint must use HTTPS",
-    );
-    expect(validateProfile({ ...profile, baseUrl: "https://example.com/v1" })).toBe(
-      "OpenRouter endpoint cannot be changed",
-    );
+    expect(
+      validateProfile({ ...profile, baseUrl: "http://example.com/v1" }),
+    ).toBe("Endpoint must use HTTPS");
+    expect(
+      validateProfile({ ...profile, baseUrl: "https://example.com/v1" }),
+    ).toBe("OpenRouter endpoint cannot be changed");
   });
 
   test("puts free OpenRouter models first without inventing generic pricing", () => {
@@ -43,12 +43,14 @@ describe("provider configuration", () => {
         },
       ],
     };
-    expect(normalizeModels(payload, "openrouter").map((model) => model.id)).toEqual([
-      "free/model:free",
-      "paid/model",
-      "unknown/model",
-    ]);
-    expect(normalizeModels(payload, "openai-compatible").every((model) => !model.free)).toBe(true);
+    expect(
+      normalizeModels(payload, "openrouter").map((model) => model.id),
+    ).toEqual(["free/model:free", "paid/model", "unknown/model"]);
+    expect(
+      normalizeModels(payload, "openai-compatible").every(
+        (model) => !model.free,
+      ),
+    ).toBe(true);
   });
 
   test("searches model names, slugs and providers", () => {

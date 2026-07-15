@@ -78,8 +78,11 @@ export function SearchScreen({
         <Text style={styles.error}>{t("common.retryMore")}</Text>
         <Text style={styles.errorDetail}>{search.state.paginationError}</Text>
       </Pressable>
-    ) : search.state.paginationStatus === "exhausted" && search.state.papers.length > 0 ? (
-      <Text style={styles.end}>{t("search.end", { count: search.state.papers.length })}</Text>
+    ) : search.state.paginationStatus === "exhausted" &&
+      search.state.papers.length > 0 ? (
+      <Text style={styles.end}>
+        {t("search.end", { count: search.state.papers.length })}
+      </Text>
     ) : null;
 
   return (
@@ -124,9 +127,17 @@ export function SearchScreen({
             <Pressable
               key={id}
               onPress={() => search.setScope(id)}
-              style={[styles.scopeButton, search.scope === id && styles.scopeActive]}
+              style={[
+                styles.scopeButton,
+                search.scope === id && styles.scopeActive,
+              ]}
             >
-              <Text style={[styles.scopeText, search.scope === id && styles.scopeTextActive]}>
+              <Text
+                style={[
+                  styles.scopeText,
+                  search.scope === id && styles.scopeTextActive,
+                ]}
+              >
                 {t(id === "all" ? "search.scopeAll" : "search.scopeCategories")}
               </Text>
             </Pressable>
@@ -165,7 +176,9 @@ export function SearchScreen({
               <SearchResultRow
                 paper={item}
                 saved={isSaved(item.arxivId)}
-                downloaded={hasOfflinePaper(item.arxivId) || hasPdf(item.arxivId)}
+                downloaded={
+                  hasOfflinePaper(item.arxivId) || hasPdf(item.arxivId)
+                }
                 onRead={onRead}
                 onToggleSave={onToggleSave}
                 onDownload={onDownload}
@@ -229,19 +242,50 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  scopeButton: { flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: radii.small },
+  scopeButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
+    borderRadius: radii.small,
+  },
   scopeActive: { backgroundColor: colors.surfacePressed },
   scopeText: { color: colors.dim, fontSize: 13, fontWeight: "600" },
   scopeTextActive: { color: colors.text },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 24 },
-  emptyState: { alignItems: "center", gap: 12, marginTop: 48, paddingHorizontal: 24 },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    padding: 24,
+  },
+  emptyState: {
+    alignItems: "center",
+    gap: 12,
+    marginTop: 48,
+    paddingHorizontal: 24,
+  },
   empty: { color: colors.dim, textAlign: "center" },
   muted: { color: colors.dim, fontSize: 13 },
   error: { color: colors.danger, fontWeight: "600" },
   errorDetail: { color: colors.dim, fontSize: 12, textAlign: "center" },
-  retry: { backgroundColor: colors.surfacePressed, borderRadius: radii.medium, paddingHorizontal: 18, paddingVertical: 11 },
+  retry: {
+    backgroundColor: colors.surfacePressed,
+    borderRadius: radii.medium,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+  },
   retryText: { color: colors.text, fontWeight: "600" },
   results: { paddingHorizontal: 16, paddingBottom: 32, gap: 9 },
-  footer: { alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 22 },
-  end: { color: colors.dim, fontSize: 12, textAlign: "center", paddingVertical: 22 },
+  footer: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingVertical: 22,
+  },
+  end: {
+    color: colors.dim,
+    fontSize: 12,
+    textAlign: "center",
+    paddingVertical: 22,
+  },
 });

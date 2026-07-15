@@ -32,7 +32,9 @@ export function useLibrary() {
   const [pdfDownloads, setPdfDownloads] = useState<PdfDownloadEntry[]>([]);
   const [ready, setReady] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [downloadingKind, setDownloadingKind] = useState<"reader" | "pdf" | null>(null);
+  const [downloadingKind, setDownloadingKind] = useState<
+    "reader" | "pdf" | null
+  >(null);
   const offlineDownloadController = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -141,33 +143,39 @@ export function useLibrary() {
     }
   }, []);
 
-  const deleteOffline = useCallback(async (arxivId: string) => {
-    const entry = offlineById.get(arxivId);
-    if (!entry) return;
-    await deleteOfflinePaperPackage(entry);
-    setOfflinePapers((previous) => {
-      const next = previous.filter((item) => item.arxivId !== arxivId);
-      void persistOfflinePapers(next);
-      return next;
-    });
-  }, [offlineById]);
+  const deleteOffline = useCallback(
+    async (arxivId: string) => {
+      const entry = offlineById.get(arxivId);
+      if (!entry) return;
+      await deleteOfflinePaperPackage(entry);
+      setOfflinePapers((previous) => {
+        const next = previous.filter((item) => item.arxivId !== arxivId);
+        void persistOfflinePapers(next);
+        return next;
+      });
+    },
+    [offlineById],
+  );
 
-  const deleteDownloads = useCallback(async (arxivId: string) => {
-    const offlineEntry = offlineById.get(arxivId);
-    const pdfEntry = pdfById.get(arxivId);
-    if (offlineEntry) await deleteOfflinePaperPackage(offlineEntry);
-    if (pdfEntry) await deletePdfFiles(pdfEntry);
-    setOfflinePapers((previous) => {
-      const next = previous.filter((item) => item.arxivId !== arxivId);
-      void persistOfflinePapers(next);
-      return next;
-    });
-    setPdfDownloads((previous) => {
-      const next = previous.filter((item) => item.arxivId !== arxivId);
-      void persistPdfDownloads(next);
-      return next;
-    });
-  }, [offlineById, pdfById]);
+  const deleteDownloads = useCallback(
+    async (arxivId: string) => {
+      const offlineEntry = offlineById.get(arxivId);
+      const pdfEntry = pdfById.get(arxivId);
+      if (offlineEntry) await deleteOfflinePaperPackage(offlineEntry);
+      if (pdfEntry) await deletePdfFiles(pdfEntry);
+      setOfflinePapers((previous) => {
+        const next = previous.filter((item) => item.arxivId !== arxivId);
+        void persistOfflinePapers(next);
+        return next;
+      });
+      setPdfDownloads((previous) => {
+        const next = previous.filter((item) => item.arxivId !== arxivId);
+        void persistPdfDownloads(next);
+        return next;
+      });
+    },
+    [offlineById, pdfById],
+  );
 
   return {
     ready,

@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Check from "lucide-react-native/icons/check";
 import Pencil from "lucide-react-native/icons/pencil";
 import Plus from "lucide-react-native/icons/plus";
@@ -70,7 +65,10 @@ export function ProviderSettings({ manager }: Props) {
         </View>
       ))}
       <View style={styles.addRow}>
-        <Pressable style={styles.addButton} onPress={() => create("openrouter")}>
+        <Pressable
+          style={styles.addButton}
+          onPress={() => create("openrouter")}
+        >
           <Plus color={colors.textSecondary} size={16} strokeWidth={1.8} />
           <Text style={styles.addText}>OpenRouter</Text>
         </Pressable>
@@ -94,16 +92,56 @@ export function ProviderSettings({ manager }: Props) {
 
 const styles = StyleSheet.create({
   section: { marginTop: 28 },
-  heading: { color: colors.dim, fontSize: 12, fontWeight: "600", marginBottom: 6, marginLeft: 4 },
-  hint: { color: colors.dim, fontSize: 13, lineHeight: 18, marginBottom: 10, marginHorizontal: 4 },
-  profileRow: { flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderRadius: radii.medium, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, padding: 12, marginBottom: 7 },
+  heading: {
+    color: colors.dim,
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 6,
+    marginLeft: 4,
+  },
+  hint: {
+    color: colors.dim,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 10,
+    marginHorizontal: 4,
+  },
+  profileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radii.medium,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    padding: 12,
+    marginBottom: 7,
+  },
   profileMain: { flex: 1 },
   profileTitle: { flexDirection: "row", alignItems: "center", gap: 6 },
   profileName: { color: colors.text, fontSize: 14, fontWeight: "600" },
   profileModel: { color: colors.dim, fontSize: 12, marginTop: 3 },
   edit: { color: colors.muted, fontSize: 14, fontWeight: "600" },
-  iconButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: radii.small, backgroundColor: colors.surfaceRaised },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.small,
+    backgroundColor: colors.surfaceRaised,
+  },
   addRow: { flexDirection: "row", gap: 8, marginTop: 6 },
-  addButton: { flex: 1, minHeight: 44, flexDirection: "row", gap: 6, backgroundColor: colors.surfaceRaised, borderRadius: radii.medium, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  addButton: {
+    flex: 1,
+    minHeight: 44,
+    flexDirection: "row",
+    gap: 6,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radii.medium,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   addText: { color: colors.textSecondary, fontSize: 13, fontWeight: "600" },
 });

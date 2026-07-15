@@ -1,9 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { UiLangPref } from "../i18n";
-import {
-  DEFAULT_CATEGORIES,
-  normalizeCategories,
-} from "./categories";
+import { DEFAULT_CATEGORIES, normalizeCategories } from "./categories";
 import { enqueueStorageWrite } from "./storageQueue";
 
 const KEYS = {
@@ -82,8 +79,12 @@ export async function saveCategories(ids: string[]): Promise<void> {
   );
 }
 
-export async function saveTranslateLang(lang: TranslateLangPref): Promise<void> {
-  await enqueueStorageWrite(() => AsyncStorage.setItem(KEYS.translateLang, lang));
+export async function saveTranslateLang(
+  lang: TranslateLangPref,
+): Promise<void> {
+  await enqueueStorageWrite(() =>
+    AsyncStorage.setItem(KEYS.translateLang, lang),
+  );
 }
 
 export async function saveUiLang(lang: UiLangPref): Promise<void> {

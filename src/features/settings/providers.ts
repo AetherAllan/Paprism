@@ -32,14 +32,13 @@ function validProfiles(value: unknown): ProviderProfile[] {
     ? value
         .filter(
           (item): item is ProviderProfile =>
-          !!item &&
-          typeof item === "object" &&
-          typeof item.id === "string" &&
-          typeof item.name === "string" &&
-          (item.kind === "openrouter" ||
-            item.kind === "openai-compatible") &&
-          typeof item.baseUrl === "string" &&
-          typeof item.model === "string",
+            !!item &&
+            typeof item === "object" &&
+            typeof item.id === "string" &&
+            typeof item.name === "string" &&
+            (item.kind === "openrouter" || item.kind === "openai-compatible") &&
+            typeof item.baseUrl === "string" &&
+            typeof item.model === "string",
         )
         // Persisted settings are an input boundary too. Never send a stored
         // secret to a profile that no longer satisfies the HTTPS rules.
@@ -75,11 +74,13 @@ export async function loadProviderState(): Promise<ProviderState> {
     profiles,
     activeProfileId: profiles.some((profile) => profile.id === activeProfileId)
       ? activeProfileId
-      : profiles[0]?.id ?? null,
+      : (profiles[0]?.id ?? null),
   };
 }
 
-export async function persistProviderState(state: ProviderState): Promise<void> {
+export async function persistProviderState(
+  state: ProviderState,
+): Promise<void> {
   await enqueueStorageWrite(async () => {
     await AsyncStorage.setItem(
       PROFILES_KEY,
@@ -99,7 +100,9 @@ function secretKey(profileId: string): string {
   return `arxivtok.provider.${profileId}.apiKey`;
 }
 
-export async function getProviderApiKey(profileId: string): Promise<string | null> {
+export async function getProviderApiKey(
+  profileId: string,
+): Promise<string | null> {
   return SecureStore.getItemAsync(secretKey(profileId));
 }
 

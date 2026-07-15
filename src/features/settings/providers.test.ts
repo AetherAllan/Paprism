@@ -6,13 +6,15 @@ const secureValues = new Map<string, string>();
 mock.module("@react-native-async-storage/async-storage", () => ({
   default: {
     getItem: async (key: string) => asyncValues.get(key) ?? null,
-    setItem: async (key: string, value: string) => void asyncValues.set(key, value),
+    setItem: async (key: string, value: string) =>
+      void asyncValues.set(key, value),
     removeItem: async (key: string) => void asyncValues.delete(key),
   },
 }));
 mock.module("expo-secure-store", () => ({
   getItemAsync: async (key: string) => secureValues.get(key) ?? null,
-  setItemAsync: async (key: string, value: string) => void secureValues.set(key, value),
+  setItemAsync: async (key: string, value: string) =>
+    void secureValues.set(key, value),
   deleteItemAsync: async (key: string) => void secureValues.delete(key),
 }));
 mock.module("expo-file-system/legacy", () => ({
@@ -23,7 +25,8 @@ mock.module("expo-file-system/legacy", () => ({
   writeAsStringAsync: async () => undefined,
 }));
 
-const { loadProviderState, persistProviderState, setProviderApiKey } = await import("./providers");
+const { loadProviderState, persistProviderState, setProviderApiKey } =
+  await import("./providers");
 
 describe("provider secret ownership", () => {
   beforeEach(() => {

@@ -14,7 +14,8 @@ mock.module("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
-const { HISTORY_CAP, loadPdfDownloads, upsertHistory } = await import("./library");
+const { HISTORY_CAP, loadPdfDownloads, upsertHistory } =
+  await import("./library");
 
 const paper = (arxivId: string): Paper => ({
   arxivId,
@@ -54,7 +55,9 @@ describe("download metadata migration", () => {
       exported: true,
     });
     expect(values.has("arxivtok.downloads")).toBe(false);
-    expect(JSON.parse(values.get("arxivtok.pdfDownloads") ?? "[]")[0]).not.toHaveProperty("id");
+    expect(
+      JSON.parse(values.get("arxivtok.pdfDownloads") ?? "[]")[0],
+    ).not.toHaveProperty("id");
   });
 });
 

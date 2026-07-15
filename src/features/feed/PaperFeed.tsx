@@ -106,16 +106,19 @@ export function PaperFeed({
     [listReady, listRef],
   );
 
-  const onListLayout = useCallback((event: LayoutChangeEvent) => {
-    const measuredHeight = event.nativeEvent.layout.height;
-    if (measuredHeight <= 0) return;
-    if (Math.abs(pageHeight - measuredHeight) < 0.5) {
-      listReady.value = true;
-      return;
-    }
-    listReady.value = false;
-    setPageHeight(measuredHeight);
-  }, [listReady, pageHeight]);
+  const onListLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const measuredHeight = event.nativeEvent.layout.height;
+      if (measuredHeight <= 0) return;
+      if (Math.abs(pageHeight - measuredHeight) < 0.5) {
+        listReady.value = true;
+        return;
+      }
+      listReady.value = false;
+      setPageHeight(measuredHeight);
+    },
+    [listReady, pageHeight],
+  );
 
   const getItemLayout = useCallback(
     (_: ArrayLike<Paper> | null | undefined, i: number) => ({
@@ -171,7 +174,13 @@ export function PaperFeed({
         },
       );
     },
-    [animatedOffset, finishPageAnimation, pageHeight, papers.length, reduceMotion],
+    [
+      animatedOffset,
+      finishPageAnimation,
+      pageHeight,
+      papers.length,
+      reduceMotion,
+    ],
   );
 
   if (status === "loading" && papers.length === 0) {
@@ -197,9 +206,13 @@ export function PaperFeed({
       <View style={styles.center}>
         <Tags color={colors.dim} size={28} strokeWidth={1.5} />
         <Text style={styles.errorTitle}>{t("categories.noCommonPapers")}</Text>
-        <Text style={styles.errorBody}>{t("categories.noCommonPapersHint")}</Text>
+        <Text style={styles.errorBody}>
+          {t("categories.noCommonPapersHint")}
+        </Text>
         <Pressable style={styles.retry} onPress={onOpenCategories}>
-          <Text style={styles.retryText}>{t("categories.changeSelection")}</Text>
+          <Text style={styles.retryText}>
+            {t("categories.changeSelection")}
+          </Text>
         </Pressable>
       </View>
     );
@@ -207,9 +220,7 @@ export function PaperFeed({
 
   return (
     <View style={styles.root}>
-      <View
-        style={[styles.header, { paddingTop: Math.max(insets.top, 8) }]}
-      >
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 8) }]}>
         <Pressable onPress={onOpenCategories} style={styles.catBtn} hitSlop={8}>
           <View style={styles.catIcon}>
             <Tags color={colors.text} size={18} strokeWidth={1.8} />

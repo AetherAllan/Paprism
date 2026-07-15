@@ -111,14 +111,18 @@ export function LibraryScreen({
   };
 
   const confirmDeleteDownload = (item: DownloadSummary) => {
-    Alert.alert(t("library.removeDownloads"), t("library.removeDownloadsBody"), [
-      { text: t("common.cancel"), style: "cancel" },
-      {
-        text: t("library.clear"),
-        style: "destructive",
-        onPress: () => onDeleteDownloads(item.arxivId),
-      },
-    ]);
+    Alert.alert(
+      t("library.removeDownloads"),
+      t("library.removeDownloadsBody"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("library.clear"),
+          style: "destructive",
+          onPress: () => onDeleteDownloads(item.arxivId),
+        },
+      ],
+    );
   };
 
   return (
@@ -190,7 +194,6 @@ export function LibraryScreen({
             ))
           )}
         </ScrollView>
-
       </View>
     </SectionFrame>
   );

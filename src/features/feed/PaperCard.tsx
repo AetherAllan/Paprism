@@ -21,10 +21,7 @@ import { runOnJS } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radii } from "@/shared/theme";
 import type { Paper } from "@/types/paper";
-import {
-  pageDirectionForGesture,
-  type PageDirection,
-} from "./feedPaging";
+import { pageDirectionForGesture, type PageDirection } from "./feedPaging";
 
 type Props = {
   paper: Paper;
@@ -88,9 +85,7 @@ export function PaperCard({
     bodyViewportHeight.current = event.nativeEvent.layout.height;
   };
 
-  const handleBodyScroll = (
-    event: NativeSyntheticEvent<NativeScrollEvent>,
-  ) => {
+  const handleBodyScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     bodyOffset.current = event.nativeEvent.contentOffset.y;
   };
 
@@ -145,12 +140,7 @@ export function PaperCard({
     });
 
   return (
-    <View
-      style={[
-        styles.shell,
-        { height, paddingBottom: insets.bottom + 16 },
-      ]}
-    >
+    <View style={[styles.shell, { height, paddingBottom: insets.bottom + 16 }]}>
       <GestureDetector gesture={pageGesture}>
         <GestureDetector gesture={nativeScrollGesture}>
           <ScrollView
@@ -194,19 +184,18 @@ export function PaperCard({
           {saved ? (
             <BookmarkCheck color={colors.text} size={17} strokeWidth={1.8} />
           ) : (
-            <Bookmark color={colors.textSecondary} size={17} strokeWidth={1.8} />
+            <Bookmark
+              color={colors.textSecondary}
+              size={17}
+              strokeWidth={1.8}
+            />
           )}
-          <Text
-            style={[styles.secondaryText, saved && styles.secondaryTextOn]}
-          >
+          <Text style={[styles.secondaryText, saved && styles.secondaryTextOn]}>
             {saved ? t("common.saved") : t("common.save")}
           </Text>
         </Pressable>
         <Pressable
-          style={({ pressed }) => [
-            styles.readBtn,
-            pressed && styles.pressed,
-          ]}
+          style={({ pressed }) => [styles.readBtn, pressed && styles.pressed]}
           onPress={() => onRead(paper)}
         >
           <BookOpen color={colors.inverse} size={18} strokeWidth={2} />
@@ -227,9 +216,17 @@ export function PaperCard({
           {downloading && canCancelDownload ? (
             <X color={colors.textSecondary} size={17} strokeWidth={1.8} />
           ) : hasOfflinePaper || hasPdf ? (
-            <FileCheck color={colors.textSecondary} size={17} strokeWidth={1.8} />
+            <FileCheck
+              color={colors.textSecondary}
+              size={17}
+              strokeWidth={1.8}
+            />
           ) : (
-            <Download color={colors.textSecondary} size={17} strokeWidth={1.8} />
+            <Download
+              color={colors.textSecondary}
+              size={17}
+              strokeWidth={1.8}
+            />
           )}
           <Text style={styles.secondaryText}>
             {downloading
@@ -240,7 +237,7 @@ export function PaperCard({
                 ? t("common.offlineRead")
                 : hasPdf
                   ? t("common.pdfSaved")
-                : t("common.download")}
+                  : t("common.download")}
           </Text>
         </Pressable>
       </View>

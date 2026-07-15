@@ -34,14 +34,22 @@ export const FEED_CATEGORIES: CategoryOption[] = [
   { id: "cs.AI", label: "Artificial Intelligence", group: CS },
   { id: "cs.AR", label: "Hardware Architecture", group: CS },
   { id: "cs.CC", label: "Computational Complexity", group: CS },
-  { id: "cs.CE", label: "Computational Engineering, Finance, and Science", group: CS },
+  {
+    id: "cs.CE",
+    label: "Computational Engineering, Finance, and Science",
+    group: CS,
+  },
   { id: "cs.CG", label: "Computational Geometry", group: CS },
   { id: "cs.CL", label: "Computation and Language", group: CS },
   { id: "cs.CR", label: "Cryptography and Security", group: CS },
   { id: "cs.CV", label: "Computer Vision and Pattern Recognition", group: CS },
   { id: "cs.CY", label: "Computers and Society", group: CS },
   { id: "cs.DB", label: "Databases", group: CS },
-  { id: "cs.DC", label: "Distributed, Parallel, and Cluster Computing", group: CS },
+  {
+    id: "cs.DC",
+    label: "Distributed, Parallel, and Cluster Computing",
+    group: CS,
+  },
   { id: "cs.DL", label: "Digital Libraries", group: CS },
   { id: "cs.DM", label: "Discrete Mathematics", group: CS },
   { id: "cs.DS", label: "Data Structures and Algorithms", group: CS },
@@ -118,25 +126,57 @@ export const FEED_CATEGORIES: CategoryOption[] = [
   { id: "math.ST", label: "Statistics Theory", group: MATH },
 
   // Astrophysics
-  { id: "astro-ph.CO", label: "Cosmology and Nongalactic Astrophysics", group: ASTRO },
-  { id: "astro-ph.EP", label: "Earth and Planetary Astrophysics", group: ASTRO },
+  {
+    id: "astro-ph.CO",
+    label: "Cosmology and Nongalactic Astrophysics",
+    group: ASTRO,
+  },
+  {
+    id: "astro-ph.EP",
+    label: "Earth and Planetary Astrophysics",
+    group: ASTRO,
+  },
   { id: "astro-ph.GA", label: "Astrophysics of Galaxies", group: ASTRO },
-  { id: "astro-ph.HE", label: "High Energy Astrophysical Phenomena", group: ASTRO },
-  { id: "astro-ph.IM", label: "Instrumentation and Methods for Astrophysics", group: ASTRO },
+  {
+    id: "astro-ph.HE",
+    label: "High Energy Astrophysical Phenomena",
+    group: ASTRO,
+  },
+  {
+    id: "astro-ph.IM",
+    label: "Instrumentation and Methods for Astrophysics",
+    group: ASTRO,
+  },
   { id: "astro-ph.SR", label: "Solar and Stellar Astrophysics", group: ASTRO },
 
   // Condensed Matter
-  { id: "cond-mat.dis-nn", label: "Disordered Systems and Neural Networks", group: CONDMAT },
-  { id: "cond-mat.mes-hall", label: "Mesoscale and Nanoscale Physics", group: CONDMAT },
+  {
+    id: "cond-mat.dis-nn",
+    label: "Disordered Systems and Neural Networks",
+    group: CONDMAT,
+  },
+  {
+    id: "cond-mat.mes-hall",
+    label: "Mesoscale and Nanoscale Physics",
+    group: CONDMAT,
+  },
   { id: "cond-mat.mtrl-sci", label: "Materials Science", group: CONDMAT },
   { id: "cond-mat.other", label: "Other Condensed Matter", group: CONDMAT },
   { id: "cond-mat.quant-gas", label: "Quantum Gases", group: CONDMAT },
   { id: "cond-mat.soft", label: "Soft Condensed Matter", group: CONDMAT },
   { id: "cond-mat.stat-mech", label: "Statistical Mechanics", group: CONDMAT },
-  { id: "cond-mat.str-el", label: "Strongly Correlated Electrons", group: CONDMAT },
+  {
+    id: "cond-mat.str-el",
+    label: "Strongly Correlated Electrons",
+    group: CONDMAT,
+  },
   { id: "cond-mat.supr-con", label: "Superconductivity", group: CONDMAT },
 
-  { id: "gr-qc", label: "General Relativity and Quantum Cosmology", group: GRQC },
+  {
+    id: "gr-qc",
+    label: "General Relativity and Quantum Cosmology",
+    group: GRQC,
+  },
   { id: "hep-ex", label: "High Energy Physics - Experiment", group: HEPEX },
   { id: "hep-lat", label: "High Energy Physics - Lattice", group: HEPLAT },
   { id: "hep-ph", label: "High Energy Physics - Phenomenology", group: HEPPH },
@@ -144,32 +184,60 @@ export const FEED_CATEGORIES: CategoryOption[] = [
   { id: "math-ph", label: "Mathematical Physics", group: MATHPH },
 
   // Nonlinear Sciences
-  { id: "nlin.AO", label: "Adaptation and Self-Organizing Systems", group: NLIN },
+  {
+    id: "nlin.AO",
+    label: "Adaptation and Self-Organizing Systems",
+    group: NLIN,
+  },
   { id: "nlin.CD", label: "Chaotic Dynamics", group: NLIN },
   { id: "nlin.CG", label: "Cellular Automata and Lattice Gases", group: NLIN },
   { id: "nlin.PS", label: "Pattern Formation and Solitons", group: NLIN },
-  { id: "nlin.SI", label: "Exactly Solvable and Integrable Systems", group: NLIN },
+  {
+    id: "nlin.SI",
+    label: "Exactly Solvable and Integrable Systems",
+    group: NLIN,
+  },
 
   { id: "nucl-ex", label: "Nuclear Experiment", group: NUCLEX },
   { id: "nucl-th", label: "Nuclear Theory", group: NUCLTH },
 
   // Physics
   { id: "physics.acc-ph", label: "Accelerator Physics", group: PHYSICS },
-  { id: "physics.ao-ph", label: "Atmospheric and Oceanic Physics", group: PHYSICS },
+  {
+    id: "physics.ao-ph",
+    label: "Atmospheric and Oceanic Physics",
+    group: PHYSICS,
+  },
   { id: "physics.app-ph", label: "Applied Physics", group: PHYSICS },
-  { id: "physics.atm-clus", label: "Atomic and Molecular Clusters", group: PHYSICS },
+  {
+    id: "physics.atm-clus",
+    label: "Atomic and Molecular Clusters",
+    group: PHYSICS,
+  },
   { id: "physics.atom-ph", label: "Atomic Physics", group: PHYSICS },
   { id: "physics.bio-ph", label: "Biological Physics", group: PHYSICS },
   { id: "physics.chem-ph", label: "Chemical Physics", group: PHYSICS },
   { id: "physics.class-ph", label: "Classical Physics", group: PHYSICS },
   { id: "physics.comp-ph", label: "Computational Physics", group: PHYSICS },
-  { id: "physics.data-an", label: "Data Analysis, Statistics and Probability", group: PHYSICS },
+  {
+    id: "physics.data-an",
+    label: "Data Analysis, Statistics and Probability",
+    group: PHYSICS,
+  },
   { id: "physics.ed-ph", label: "Physics Education", group: PHYSICS },
   { id: "physics.flu-dyn", label: "Fluid Dynamics", group: PHYSICS },
   { id: "physics.gen-ph", label: "General Physics", group: PHYSICS },
   { id: "physics.geo-ph", label: "Geophysics", group: PHYSICS },
-  { id: "physics.hist-ph", label: "History and Philosophy of Physics", group: PHYSICS },
-  { id: "physics.ins-det", label: "Instrumentation and Detectors", group: PHYSICS },
+  {
+    id: "physics.hist-ph",
+    label: "History and Philosophy of Physics",
+    group: PHYSICS,
+  },
+  {
+    id: "physics.ins-det",
+    label: "Instrumentation and Detectors",
+    group: PHYSICS,
+  },
   { id: "physics.med-ph", label: "Medical Physics", group: PHYSICS },
   { id: "physics.optics", label: "Optics", group: PHYSICS },
   { id: "physics.plasm-ph", label: "Plasma Physics", group: PHYSICS },
@@ -213,7 +281,9 @@ export const FEED_CATEGORIES: CategoryOption[] = [
 
 export const DEFAULT_CATEGORY = "cs.LG";
 export const DEFAULT_CATEGORIES = [DEFAULT_CATEGORY];
-const KNOWN_CATEGORY_IDS = new Set(FEED_CATEGORIES.map((category) => category.id));
+const KNOWN_CATEGORY_IDS = new Set(
+  FEED_CATEGORIES.map((category) => category.id),
+);
 
 export function isKnownCategory(id: string): boolean {
   return KNOWN_CATEGORY_IDS.has(id);

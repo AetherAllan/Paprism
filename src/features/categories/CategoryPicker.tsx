@@ -20,10 +20,7 @@ import {
   type CategoryOption,
 } from "@/lib/categories";
 import { colors, radii } from "@/shared/theme";
-import {
-  categoryGroupLabel,
-  categoryLabel,
-} from "./categoryLabels";
+import { categoryGroupLabel, categoryLabel } from "./categoryLabels";
 import { CategoryRow, SelectedCategoryChip } from "./CategoryPickerRows";
 
 type Props = {
@@ -35,7 +32,12 @@ type Props = {
 
 type CategorySection = { title: string; data: CategoryOption[] };
 
-export function CategoryPicker({ visible, selected, onSelect, onClose }: Props) {
+export function CategoryPicker({
+  visible,
+  selected,
+  onSelect,
+  onClose,
+}: Props) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState("");
@@ -170,7 +172,9 @@ export function CategoryPicker({ visible, selected, onSelect, onClose }: Props) 
             <Text style={styles.empty}>{t("categories.noMatches")}</Text>
           }
           renderSectionHeader={({ section }) => (
-            <Text style={styles.group}>{categoryGroupLabel(section.title)}</Text>
+            <Text style={styles.group}>
+              {categoryGroupLabel(section.title)}
+            </Text>
           )}
           renderItem={({ item }) => {
             return (
@@ -190,7 +194,10 @@ export function CategoryPicker({ visible, selected, onSelect, onClose }: Props) 
 
         <Pressable
           onPress={apply}
-          style={({ pressed }) => [styles.apply, pressed && styles.applyPressed]}
+          style={({ pressed }) => [
+            styles.apply,
+            pressed && styles.applyPressed,
+          ]}
         >
           <Text style={styles.applyText}>{t("common.apply")}</Text>
         </Pressable>

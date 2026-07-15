@@ -31,14 +31,18 @@ describe("paper document boundary", () => {
     expect(
       isPaperDocument({
         ...validDocument,
-        blocks: [{ ...validDocument.blocks[0], assets: [{ uri: 1, alt: "x" }] }],
+        blocks: [
+          { ...validDocument.blocks[0], assets: [{ uri: 1, alt: "x" }] },
+        ],
       }),
     ).toBe(false);
   });
 
   test("never accepts duplicated or missing protected markers", () => {
     const tokens = validDocument.blocks[0]!.protectedTokens;
-    expect(restoreProtectedTokens("值 [[AT_MATH_0]]。", tokens)).toBe("值 $x$。");
+    expect(restoreProtectedTokens("值 [[AT_MATH_0]]。", tokens)).toBe(
+      "值 $x$。",
+    );
     expect(() =>
       restoreProtectedTokens("[[AT_MATH_0]] [[AT_MATH_0]]", tokens),
     ).toThrow("protected token");

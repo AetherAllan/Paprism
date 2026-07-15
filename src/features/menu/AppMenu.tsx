@@ -24,10 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "@/shared/theme";
 import type { AppSection } from "@/types/navigation";
 import { AppMenuContent } from "./AppMenuContent";
-import {
-  drawerWidth,
-  shouldCompleteSwipe,
-} from "./navigationMotion";
+import { drawerWidth, shouldCompleteSwipe } from "./navigationMotion";
 
 type Props = {
   visible: boolean;
@@ -65,9 +62,7 @@ export function AppMenu({
       return;
     }
     closing.value = false;
-    translateX.value = reduceMotion
-      ? 0
-      : withSpring(0, DRAWER_SPRING);
+    translateX.value = reduceMotion ? 0 : withSpring(0, DRAWER_SPRING);
   }, [closing, panelWidth, reduceMotion, translateX, visible]);
 
   const finishClose = useCallback(() => {
@@ -121,19 +116,11 @@ export function AppMenu({
       closing.value = false;
     })
     .onUpdate((event) => {
-      translateX.value = Math.min(
-        panelWidth,
-        Math.max(0, event.translationX),
-      );
+      translateX.value = Math.min(panelWidth, Math.max(0, event.translationX));
     })
     .onEnd((event) => {
       if (
-        shouldCompleteSwipe(
-          translateX.value,
-          panelWidth,
-          event.velocityX,
-          0.25,
-        )
+        shouldCompleteSwipe(translateX.value, panelWidth, event.velocityX, 0.25)
       ) {
         closing.value = true;
         if (reduceMotion) {

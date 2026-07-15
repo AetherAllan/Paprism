@@ -82,7 +82,8 @@ export function prepareTranslationBatches(
   const batches: TranslationPart[][] = [];
   for (const part of parts) {
     const current = batches.at(-1);
-    const chars = current?.reduce((sum, item) => sum + item.text.length, 0) ?? 0;
+    const chars =
+      current?.reduce((sum, item) => sum + item.text.length, 0) ?? 0;
     const currentSection = current?.[0]?.context?.sectionTitle ?? "";
     const nextSection = part.context?.sectionTitle ?? "";
     if (
@@ -103,14 +104,18 @@ export function parseTranslationResponse(
   content: string,
   expectedIds: Set<string>,
 ): TranslationResult[] {
-  const cleaned = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  const cleaned = content
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
   const parsed = JSON.parse(cleaned) as unknown;
   const rows = Array.isArray(parsed)
     ? parsed
     : parsed && typeof parsed === "object"
       ? (parsed as { translations?: unknown }).translations
       : null;
-  if (!Array.isArray(rows)) throw new Error("Model response is not a translation array");
+  if (!Array.isArray(rows))
+    throw new Error("Model response is not a translation array");
   const results = rows.filter(
     (row): row is TranslationResult =>
       !!row &&
@@ -120,7 +125,10 @@ export function parseTranslationResponse(
       expectedIds.has(row.id),
   );
   const uniqueIds = new Set(results.map((result) => result.id));
-  if (results.length !== expectedIds.size || uniqueIds.size !== expectedIds.size) {
+  if (
+    results.length !== expectedIds.size ||
+    uniqueIds.size !== expectedIds.size
+  ) {
     throw new Error("Model response did not include every requested block");
   }
   return results;

@@ -22,9 +22,9 @@ describe("arXiv search", () => {
     expect(buildSearchQuery('graph "agent"', "all", ["cs.LG"])).toBe(
       'all:"graph" AND all:"agent"',
     );
-    expect(buildSearchQuery("graph agent", "categories", ["cs.LG", "stat.ML"])).toBe(
-      '(all:"graph" AND all:"agent") AND (cat:cs.LG AND cat:stat.ML)',
-    );
+    expect(
+      buildSearchQuery("graph agent", "categories", ["cs.LG", "stat.ML"]),
+    ).toBe('(all:"graph" AND all:"agent") AND (cat:cs.LG AND cat:stat.ML)');
   });
 
   test("returns no query when sanitizing removes every term", () => {
@@ -122,7 +122,11 @@ describe("arXiv search", () => {
       },
     );
 
-    expect(complete.papers.map((item) => item.arxivId)).toEqual(["1", "2", "3"]);
+    expect(complete.papers.map((item) => item.arxivId)).toEqual([
+      "1",
+      "2",
+      "3",
+    ]);
     expect(complete.paginationStatus).toBe("exhausted");
   });
 });

@@ -35,7 +35,10 @@ type Options = {
   getProviderApiKey: (profileId: string) => Promise<string | null>;
 };
 
-function translationBlock(paper: Paper, block: PaperBlock): TranslationBlock | null {
+function translationBlock(
+  paper: Paper,
+  block: PaperBlock,
+): TranslationBlock | null {
   if (!block.translationSource) return null;
   return {
     id: block.id,
@@ -150,162 +153,178 @@ export function useDocumentTranslation({
     }
   }, [active, refreshProgress]);
 
-  const drainQueue = useCallback(async function runQueue() {
-    if (
-      processingSession.current === sessionRef.current ||
-      !activeRef.current ||
-      !paper ||
-      !providerProfile ||
-      !cacheId
-    ) {
-      return;
-    }
-    const expectedSession = sessionRef.current;
-    processingSession.current = expectedSession;
-    let retryCount = 0;
-    try {
-      const apiKey =
-        providerProfile.kind === "google"
-          ? null
-          : await getProviderApiKey(providerProfile.id);
-      if (providerProfile.kind !== "google" && !apiKey) {
-        throw new Error("The selected provider has no API key");
+  const drainQueue = useCallback(
+    async function runQueue() {
+      if (
+        processingSession.current === sessionRef.current ||
+        !activeRef.current ||
+        !paper ||
+        !providerProfile ||
+        !cacheId
+      ) {
+        return;
       }
-      while (pending.current.size > 0 && activeRef.current) {
-        const title = pending.current.get(PAPER_TITLE_TRANSLATION_ID);
-        // The title is a tiny, immediately visible request. Finish it first so
-        // the reader shows useful progress before larger paragraph batches.
-        const batch = title ? [title] : [...pending.current.values()].slice(0, 6);
-        for (const block of batch) {
-          pending.current.delete(block.id);
-          inFlight.current.add(block.id);
+      const expectedSession = sessionRef.current;
+      processingSession.current = expectedSession;
+      let retryCount = 0;
+      try {
+        const apiKey =
+          providerProfile.kind === "google"
+            ? null
+            : await getProviderApiKey(providerProfile.id);
+        if (providerProfile.kind !== "google" && !apiKey) {
+          throw new Error("The selected provider has no API key");
         }
-        refreshProgress();
-        const currentController = new AbortController();
-        controller.current = currentController;
-        try {
-          const results = await translateBlocks(
-            providerProfile,
-            apiKey,
-            targetLang,
-            batch,
-            currentController.signal,
-          );
-          if (
-            sessionRef.current !== expectedSession ||
-            currentController.signal.aborted
-          ) {
-            return;
+        while (pending.current.size > 0 && activeRef.current) {
+          const title = pending.current.get(PAPER_TITLE_TRANSLATION_ID);
+          // The title is a tiny, immediately visible request. Finish it first so
+          // the reader shows useful progress before larger paragraph batches.
+          const batch = title
+            ? [title]
+            : [...pending.current.values()].slice(0, 6);
+          for (const block of batch) {
+            pending.current.delete(block.id);
+            inFlight.current.add(block.id);
           }
-          const restored: Record<string, string> = {};
-          const requests = new Map(batch.map((block) => [block.id, block]));
-          for (const result of results) {
-            const sourceBlock = blocksById.get(result.id);
-            const requestBlock = requests.get(result.id);
-            if (!requestBlock) {
-              throw new Error("Translation result does not match the active document");
-            }
-            if (result.id === PAPER_TITLE_TRANSLATION_ID) {
-              restored[result.id] = result.text.trim();
-            } else {
-              if (!sourceBlock) {
-                throw new Error("Translation result does not match the active document");
-              }
-              restored[result.id] = restoreProtectedTokens(
-                result.text,
-                sourceBlock.protectedTokens,
-              );
-            }
-          }
-          // Do not expose or cache a partial batch. A later damaged marker must
-          // not leave earlier paragraphs looking successfully translated.
-          for (const [id, markdown] of Object.entries(restored)) {
-            const requestBlock = requests.get(id)!;
-            completed.current.add(id);
-            failed.current.delete(id);
-            cache.current[blockCacheKey(requestBlock)] = markdown;
-          }
-          setTranslations((current) => ({ ...current, ...restored }));
-          void saveTranslationCache(cacheId, cache.current).catch(() => undefined);
-          setError(null);
-          retryCount = 0;
-        } catch (translationError) {
-          if (currentController.signal.aborted) return;
-          if (isRetryableTranslationError(translationError)) {
-            // Keep the visible batch first. As long as translation mode stays
-            // active, transient provider failures retry with a capped backoff.
-            pending.current = new Map([
-              ...batch.map((block) => [block.id, block] as const),
-              ...pending.current,
-            ]);
-            refreshProgress();
-            const delay = RETRY_DELAYS_MS[Math.min(retryCount, RETRY_DELAYS_MS.length - 1)];
-            retryCount += 1;
-            await waitForRetry(delay, currentController.signal);
-            if (currentController.signal.aborted || !activeRef.current) return;
-            continue;
-          }
-          for (const block of batch) failed.current.set(block.id, block);
-          for (const block of pending.current.values()) {
-            failed.current.set(block.id, block);
-          }
-          pending.current.clear();
-          setError(
-            translationError instanceof Error
-              ? translationError.message
-              : "Unknown translation error",
-          );
           refreshProgress();
-          break;
-        } finally {
-          // A replaced session may already be translating blocks with the same
-          // arXiv-generated IDs. The old request must not release their state.
-          if (sessionRef.current === expectedSession) {
-            for (const block of batch) inFlight.current.delete(block.id);
+          const currentController = new AbortController();
+          controller.current = currentController;
+          try {
+            const results = await translateBlocks(
+              providerProfile,
+              apiKey,
+              targetLang,
+              batch,
+              currentController.signal,
+            );
+            if (
+              sessionRef.current !== expectedSession ||
+              currentController.signal.aborted
+            ) {
+              return;
+            }
+            const restored: Record<string, string> = {};
+            const requests = new Map(batch.map((block) => [block.id, block]));
+            for (const result of results) {
+              const sourceBlock = blocksById.get(result.id);
+              const requestBlock = requests.get(result.id);
+              if (!requestBlock) {
+                throw new Error(
+                  "Translation result does not match the active document",
+                );
+              }
+              if (result.id === PAPER_TITLE_TRANSLATION_ID) {
+                restored[result.id] = result.text.trim();
+              } else {
+                if (!sourceBlock) {
+                  throw new Error(
+                    "Translation result does not match the active document",
+                  );
+                }
+                restored[result.id] = restoreProtectedTokens(
+                  result.text,
+                  sourceBlock.protectedTokens,
+                );
+              }
+            }
+            // Do not expose or cache a partial batch. A later damaged marker must
+            // not leave earlier paragraphs looking successfully translated.
+            for (const [id, markdown] of Object.entries(restored)) {
+              const requestBlock = requests.get(id)!;
+              completed.current.add(id);
+              failed.current.delete(id);
+              cache.current[blockCacheKey(requestBlock)] = markdown;
+            }
+            setTranslations((current) => ({ ...current, ...restored }));
+            void saveTranslationCache(cacheId, cache.current).catch(
+              () => undefined,
+            );
+            setError(null);
+            retryCount = 0;
+          } catch (translationError) {
+            if (currentController.signal.aborted) return;
+            if (isRetryableTranslationError(translationError)) {
+              // Keep the visible batch first. As long as translation mode stays
+              // active, transient provider failures retry with a capped backoff.
+              pending.current = new Map([
+                ...batch.map((block) => [block.id, block] as const),
+                ...pending.current,
+              ]);
+              refreshProgress();
+              const delay =
+                RETRY_DELAYS_MS[
+                  Math.min(retryCount, RETRY_DELAYS_MS.length - 1)
+                ];
+              retryCount += 1;
+              await waitForRetry(delay, currentController.signal);
+              if (currentController.signal.aborted || !activeRef.current)
+                return;
+              continue;
+            }
+            for (const block of batch) failed.current.set(block.id, block);
+            for (const block of pending.current.values()) {
+              failed.current.set(block.id, block);
+            }
+            pending.current.clear();
+            setError(
+              translationError instanceof Error
+                ? translationError.message
+                : "Unknown translation error",
+            );
+            refreshProgress();
+            break;
+          } finally {
+            // A replaced session may already be translating blocks with the same
+            // arXiv-generated IDs. The old request must not release their state.
+            if (sessionRef.current === expectedSession) {
+              for (const block of batch) inFlight.current.delete(block.id);
+            }
+          }
+          refreshProgress();
+        }
+      } catch (translationError) {
+        if (sessionRef.current !== expectedSession || !activeRef.current)
+          return;
+        // Credential access happens before a request controller exists. Treat a
+        // failure here as retryable by the user, but do not leave pending work in
+        // place or finally would immediately start the same failing loop again.
+        for (const block of pending.current.values()) {
+          failed.current.set(block.id, block);
+        }
+        pending.current.clear();
+        setError(
+          translationError instanceof Error
+            ? translationError.message
+            : "Unknown translation error",
+        );
+      } finally {
+        // Session replacement deliberately permits the new queue to start before
+        // the aborted promise settles. Only the current owner may clear shared
+        // controller/processing state or schedule more work.
+        if (processingSession.current === expectedSession) {
+          processingSession.current = null;
+          controller.current = null;
+          refreshProgress();
+          if (
+            activeRef.current &&
+            pending.current.size > 0 &&
+            sessionRef.current === expectedSession
+          ) {
+            void runQueue();
           }
         }
-        refreshProgress();
       }
-    } catch (translationError) {
-      if (sessionRef.current !== expectedSession || !activeRef.current) return;
-      // Credential access happens before a request controller exists. Treat a
-      // failure here as retryable by the user, but do not leave pending work in
-      // place or finally would immediately start the same failing loop again.
-      for (const block of pending.current.values()) {
-        failed.current.set(block.id, block);
-      }
-      pending.current.clear();
-      setError(
-        translationError instanceof Error
-          ? translationError.message
-          : "Unknown translation error",
-      );
-    } finally {
-      // Session replacement deliberately permits the new queue to start before
-      // the aborted promise settles. Only the current owner may clear shared
-      // controller/processing state or schedule more work.
-      if (processingSession.current === expectedSession) {
-        processingSession.current = null;
-        controller.current = null;
-        refreshProgress();
-        if (
-          activeRef.current &&
-          pending.current.size > 0 &&
-          sessionRef.current === expectedSession
-        ) {
-          void runQueue();
-        }
-      }
-    }
-  }, [
-    blocksById,
-    cacheId,
-    getProviderApiKey,
-    paper,
-    providerProfile,
-    refreshProgress,
-    targetLang,
-  ]);
+    },
+    [
+      blocksById,
+      cacheId,
+      getProviderApiKey,
+      paper,
+      providerProfile,
+      refreshProgress,
+      targetLang,
+    ],
+  );
 
   const enqueue = useCallback(
     async (ids: string[]) => {
@@ -353,7 +372,8 @@ export function useDocumentTranslation({
   );
 
   const retryFailed = useCallback(() => {
-    for (const block of failed.current.values()) pending.current.set(block.id, block);
+    for (const block of failed.current.values())
+      pending.current.set(block.id, block);
     failed.current.clear();
     setError(null);
     refreshProgress();

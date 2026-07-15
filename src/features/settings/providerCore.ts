@@ -32,13 +32,16 @@ export function normalizeBaseUrl(value: string): string {
 
 export function validateProfile(profile: ProviderProfile): string | null {
   if (profile.kind === "google") {
-    return profile.id === GOOGLE_PROFILE_ID ? null : "Google profile is built in";
+    return profile.id === GOOGLE_PROFILE_ID
+      ? null
+      : "Google profile is built in";
   }
   if (!profile.name.trim()) return "Profile name is required";
   if (!profile.model.trim()) return "Model is required";
   const baseUrl = normalizeBaseUrl(profile.baseUrl);
   try {
-    if (new URL(baseUrl).protocol !== "https:") return "Endpoint must use HTTPS";
+    if (new URL(baseUrl).protocol !== "https:")
+      return "Endpoint must use HTTPS";
   } catch {
     return "Endpoint must be a valid HTTPS URL";
   }
@@ -52,7 +55,10 @@ function text(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-export function normalizeModels(payload: unknown, kind: ProviderKind): ModelOption[] {
+export function normalizeModels(
+  payload: unknown,
+  kind: ProviderKind,
+): ModelOption[] {
   if (!payload || typeof payload !== "object") return [];
   const data = (payload as { data?: unknown }).data;
   if (!Array.isArray(data)) return [];
@@ -63,15 +69,15 @@ export function normalizeModels(payload: unknown, kind: ProviderKind): ModelOpti
     const id = text(row.id);
     if (!id) continue;
     if (kind === "openrouter") {
-      const architecture = row.architecture as Record<string, unknown> | undefined;
+      const architecture = row.architecture as
+        Record<string, unknown> | undefined;
       const input = architecture?.input_modalities;
       const output = architecture?.output_modalities;
       // The catalog also contains image, audio, and safety-only models. They
       // are valid OpenRouter products but cannot satisfy this text reader.
       if (
         (Array.isArray(input) && !input.includes("text")) ||
-        (Array.isArray(output) &&
-          (output.length !== 1 || output[0] !== "text"))
+        (Array.isArray(output) && (output.length !== 1 || output[0] !== "text"))
       ) {
         continue;
       }
@@ -92,7 +98,10 @@ export function normalizeModels(payload: unknown, kind: ProviderKind): ModelOpti
   return result.sort((a, b) => Number(b.free) - Number(a.free));
 }
 
-export function searchModels(models: ModelOption[], query: string): ModelOption[] {
+export function searchModels(
+  models: ModelOption[],
+  query: string,
+): ModelOption[] {
   const needle = query.trim().toLowerCase();
   if (!needle) return models;
   return models.filter((model) =>
@@ -111,6 +120,7 @@ export function modelCatalogUrl(profile: ProviderProfile): string {
 }
 
 export function chatCompletionsUrl(profile: ProviderProfile): string {
-  if (profile.kind === "google") throw new Error("Google does not use chat completions");
+  if (profile.kind === "google")
+    throw new Error("Google does not use chat completions");
   return `${normalizeBaseUrl(profile.baseUrl)}/chat/completions`;
 }

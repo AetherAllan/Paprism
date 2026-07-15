@@ -59,16 +59,17 @@ export function buildSearchQuery(
     .filter(Boolean);
   if (safeTerms.length === 0) return null;
 
-  const terms = safeTerms
-    .map((term) => `all:"${term}"`)
-    .join(" AND ");
+  const terms = safeTerms.map((term) => `all:"${term}"`).join(" AND ");
 
   const normalized = normalizeCategories(categories);
   if (scope === "all" || normalized.includes("all")) return terms;
   return `(${terms}) AND (${categoriesToSearchQuery(normalized)})`;
 }
 
-export function searchReducer(state: SearchState, action: SearchAction): SearchState {
+export function searchReducer(
+  state: SearchState,
+  action: SearchAction,
+): SearchState {
   if (action.type === "clear") {
     return { ...initialSearchState, generation: action.generation };
   }

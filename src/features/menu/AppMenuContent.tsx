@@ -63,11 +63,7 @@ export function AppMenuContent({
             >
               <Icon color={colors.muted} size={19} strokeWidth={1.8} />
               <Text style={styles.itemText}>{t(item.labelKey)}</Text>
-              <ChevronRight
-                color={colors.dim}
-                size={17}
-                strokeWidth={1.8}
-              />
+              <ChevronRight color={colors.dim} size={17} strokeWidth={1.8} />
             </Pressable>
           );
         })}

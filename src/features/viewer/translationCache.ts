@@ -23,7 +23,8 @@ export async function loadTranslationCache(
   try {
     if (!(await getInfoAsync(uri)).exists) return {};
     const parsed = JSON.parse(await readAsStringAsync(uri)) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      return {};
     return Object.fromEntries(
       Object.entries(parsed).filter(
         (entry): entry is [string, string] => typeof entry[1] === "string",

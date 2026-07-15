@@ -81,8 +81,10 @@ function isPaperBlock(value: unknown): value is PaperBlock {
     block.anchorIds.every((anchor) => typeof anchor === "string") &&
     (block.translationSource === undefined ||
       typeof block.translationSource === "string") &&
-    (block.sectionTitle === undefined || typeof block.sectionTitle === "string") &&
-    (block.contextBefore === undefined || typeof block.contextBefore === "string") &&
+    (block.sectionTitle === undefined ||
+      typeof block.sectionTitle === "string") &&
+    (block.contextBefore === undefined ||
+      typeof block.contextBefore === "string") &&
     Array.isArray(block.protectedTokens) &&
     block.protectedTokens.every(
       (token) =>
@@ -125,6 +127,7 @@ export function restoreProtectedTokens(
 
 export function translatableBlocks(document: PaperDocument): PaperBlock[] {
   return document.blocks.filter(
-    (block) => block.translationSource && block.translationSource.trim().length > 1,
+    (block) =>
+      block.translationSource && block.translationSource.trim().length > 1,
   );
 }

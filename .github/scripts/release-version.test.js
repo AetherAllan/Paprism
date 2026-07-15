@@ -13,7 +13,9 @@ describe("nextVersion", () => {
   });
 
   test("rejects unsupported actions and non-stable versions", () => {
-    expect(() => nextVersion("1.2.3", "preview")).toThrow("Unknown release action");
+    expect(() => nextVersion("1.2.3", "preview")).toThrow(
+      "Unknown release action",
+    );
     expect(() => nextVersion("1.2.3-beta.1", "patch")).toThrow(
       "Expected a stable semantic version",
     );

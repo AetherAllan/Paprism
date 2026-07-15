@@ -148,7 +148,11 @@ export function ProviderEditor({
             value={form.name}
             onChangeText={(name) => setForm({ ...form, name })}
           />
-          <Field label={t("provider.kind")} value={form.kind} editable={false} />
+          <Field
+            label={t("provider.kind")}
+            value={form.kind}
+            editable={false}
+          />
           <Field
             label={t("provider.endpoint")}
             value={form.baseUrl}
@@ -176,7 +180,9 @@ export function ProviderEditor({
             disabled={loading}
           >
             <Text style={styles.testText}>
-              {loading ? t("provider.loadingModels") : t("provider.testAndLoad")}
+              {loading
+                ? t("provider.loadingModels")
+                : t("provider.testAndLoad")}
             </Text>
           </Pressable>
           {models.length > 0 ? (
@@ -213,7 +219,11 @@ export function ProviderEditor({
                     </View>
                     {selected ? (
                       <Animated.View entering={FadeIn.duration(140)}>
-                        <Check color={colors.text} size={19} strokeWidth={2.2} />
+                        <Check
+                          color={colors.text}
+                          size={19}
+                          strokeWidth={2.2}
+                        />
                       </Animated.View>
                     ) : null}
                   </Pressable>

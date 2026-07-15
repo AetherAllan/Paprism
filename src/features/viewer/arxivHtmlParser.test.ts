@@ -38,8 +38,12 @@ describe("arXiv native document parser", () => {
     ]);
     expect(document.blocks[0]?.markdown).toBe("## 1 Introduction");
     expect(document.blocks[0]?.sectionTitle).toBe("1 Introduction");
-    expect(document.blocks.some((block) => block.plainText === "Publisher notice")).toBe(false);
-    expect(document.blocks.filter((block) => block.plainText === "First item")).toHaveLength(1);
+    expect(
+      document.blocks.some((block) => block.plainText === "Publisher notice"),
+    ).toBe(false);
+    expect(
+      document.blocks.filter((block) => block.plainText === "First item"),
+    ).toHaveLength(1);
     expect(document.blocks[1]?.sectionTitle).toBe("1 Introduction");
     expect(document.blocks[1]?.anchorIds).toContain("S1.p1");
     expect(document.blocks[5]?.assets?.[0]).toEqual({
@@ -68,9 +72,9 @@ describe("arXiv native document parser", () => {
         block.protectedTokens,
       ),
     ).toBe("使用 $a$ 与 [这篇论文](https://example.com/paper)。");
-    expect(() => restoreProtectedTokens("公式丢失", block.protectedTokens)).toThrow(
-      "protected token",
-    );
+    expect(() =>
+      restoreProtectedTokens("公式丢失", block.protectedTokens),
+    ).toThrow("protected token");
   });
 
   test("assigns unique markers when a list contains multiple formulas", () => {
@@ -79,10 +83,9 @@ describe("arXiv native document parser", () => {
       "1234.5678",
       "https://arxiv.org/html/1234.5678",
     );
-    expect(document.blocks[0]?.protectedTokens.map((token) => token.marker)).toEqual([
-      "[[AT_MATH_0]]",
-      "[[AT_MATH_1]]",
-    ]);
+    expect(
+      document.blocks[0]?.protectedTokens.map((token) => token.marker),
+    ).toEqual(["[[AT_MATH_0]]", "[[AT_MATH_1]]"]);
   });
 
   test("keeps every formula in a multi-row equation table", () => {

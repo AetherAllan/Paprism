@@ -1,5 +1,11 @@
 import { useCallback, useEffect } from "react";
-import { BackHandler, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import {
+  BackHandler,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
@@ -13,10 +19,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "@/shared/theme";
-import {
-  EDGE_GESTURE_WIDTH,
-  shouldCompleteSwipe,
-} from "./navigationMotion";
+import { EDGE_GESTURE_WIDTH, shouldCompleteSwipe } from "./navigationMotion";
 
 type Props = {
   visible: boolean;
@@ -105,14 +108,7 @@ export function SectionFrame({
       translateX.value = Math.min(width, Math.max(0, event.translationX));
     })
     .onEnd((event) => {
-      if (
-        shouldCompleteSwipe(
-          translateX.value,
-          width,
-          event.velocityX,
-          0.25,
-        )
-      ) {
+      if (shouldCompleteSwipe(translateX.value, width, event.velocityX, 0.25)) {
         closing.value = true;
         if (reduceMotion) {
           translateX.value = width;

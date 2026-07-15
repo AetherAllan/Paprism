@@ -44,6 +44,9 @@ export function nearestPage(
   }
 
   const lastIndex = Math.max(0, Math.floor(itemCount) - 1);
-  const index = Math.min(lastIndex, Math.max(0, Math.round(offset / pageHeight)));
+  const index = Math.min(
+    lastIndex,
+    Math.max(0, Math.round(offset / pageHeight)),
+  );
   return { index, offset: index * pageHeight };
 }

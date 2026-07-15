@@ -65,9 +65,7 @@ function findElements(
 }
 
 function markdownText(value: string): string {
-  return value
-    .replace(/\\/g, "\\\\")
-    .replace(/([\[\]*_`])/g, "\\$1");
+  return value.replace(/\\/g, "\\\\").replace(/([\[\]*_`])/g, "\\$1");
 }
 
 function cleanInline(value: string): string {
@@ -108,7 +106,8 @@ function paperAssetUrl(value: string, baseUrl: string): string | null {
   if (base.protocol === "file:") {
     // Legacy offline HTML may only reference files inside its own package.
     // Do not let an authored relative path read another app document.
-    return asset.protocol === "file:" && asset.href.startsWith(new URL(".", base).href)
+    return asset.protocol === "file:" &&
+      asset.href.startsWith(new URL(".", base).href)
       ? asset.href
       : null;
   }
@@ -130,7 +129,11 @@ function inline(nodes: ChildNode[], baseUrl: string): InlineResult {
     if (node.type === "text") {
       const plain = node.data.replace(/\s+/g, " ");
       const escaped = markdownText(plain);
-      return { markdown: escaped, translationSource: escaped, plainText: plain };
+      return {
+        markdown: escaped,
+        translationSource: escaped,
+        plainText: plain,
+      };
     }
     if (!isTag(node)) {
       return { markdown: "", translationSource: "", plainText: "" };
@@ -149,7 +152,9 @@ function inline(nodes: ChildNode[], baseUrl: string): InlineResult {
           element.attribs.encoding === "application/x-tex",
       );
       const tex = cleanInline(
-        annotation ? DomUtils.textContent(annotation) : node.attribs.alttext ?? "",
+        annotation
+          ? DomUtils.textContent(annotation)
+          : (node.attribs.alttext ?? ""),
       );
       if (!tex) return { markdown: "", translationSource: "", plainText: "" };
       const math = `$${tex.replace(/\$/g, "\\$")}$`;
@@ -243,7 +248,10 @@ function uniqueTokenScopes(values: InlineResult[]): InlineResult[] {
 }
 
 function anchorIds(element: Element): string[] {
-  const ids = findElements([element], (item) => typeof item.attribs.id === "string")
+  const ids = findElements(
+    [element],
+    (item) => typeof item.attribs.id === "string",
+  )
     .map((item) => item.attribs.id)
     .filter(Boolean);
   return [...new Set(ids)];
@@ -287,7 +295,9 @@ function listMarkdown(element: Element, baseUrl: string): InlineResult {
     return { value, prefix };
   });
   return {
-    markdown: rendered.map(({ value, prefix }) => prefix + value.markdown).join("\n"),
+    markdown: rendered
+      .map(({ value, prefix }) => prefix + value.markdown)
+      .join("\n"),
     translationSource: rendered
       .map(({ value, prefix }) => prefix + value.translationSource)
       .join("\n"),
@@ -354,7 +364,9 @@ function displayEquation(element: Element): InlineResult {
           child.attribs.encoding === "application/x-tex",
       );
       return cleanInline(
-        annotation ? DomUtils.textContent(annotation) : math.attribs.alttext ?? "",
+        annotation
+          ? DomUtils.textContent(annotation)
+          : (math.attribs.alttext ?? ""),
       );
     })
     .filter(Boolean);
@@ -381,7 +393,8 @@ export function parseArxivHtml(
   const dom = parseDocument(html, { decodeEntities: true });
   const article = findElement(
     dom.children,
-    (element) => element.name === "article" && hasClass(element, "ltx_document"),
+    (element) =>
+      element.name === "article" && hasClass(element, "ltx_document"),
   );
   if (!article) throw new Error("arXiv HTML contains no paper article");
 
@@ -406,9 +419,10 @@ export function parseArxivHtml(
       kind,
       markdown: value.markdown,
       plainText: value.plainText,
-      translationSource: state.translatable !== false && isTranslatable(kind, value)
-        ? value.translationSource
-        : undefined,
+      translationSource:
+        state.translatable !== false && isTranslatable(kind, value)
+          ? value.translationSource
+          : undefined,
       protectedTokens: value.tokens,
       sectionTitle: state.sectionTitle,
       assets,
@@ -418,7 +432,8 @@ export function parseArxivHtml(
   const walk = (element: Element, state: ParseState): void => {
     const elementClasses = classes(element);
     if (SKIP_CLASSES.some((name) => elementClasses.includes(name))) return;
-    if (element.name === "h1" && hasClass(element, "ltx_title_document")) return;
+    if (element.name === "h1" && hasClass(element, "ltx_title_document"))
+      return;
 
     if (/^h[1-6]$/.test(element.name)) {
       const value = inline(element.children, sourceUrl);
@@ -543,7 +558,8 @@ export function parseArxivHtml(
   for (const child of content) {
     if (isTag(child)) walk(child, state);
   }
-  if (blocks.length === 0) throw new Error("arXiv HTML contains no readable blocks");
+  if (blocks.length === 0)
+    throw new Error("arXiv HTML contains no readable blocks");
 
   let previousContext = "";
   for (const block of blocks) {

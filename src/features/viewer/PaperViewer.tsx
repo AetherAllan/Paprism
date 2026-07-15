@@ -19,7 +19,10 @@ import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import Languages from "lucide-react-native/icons/languages";
 import ListTree from "lucide-react-native/icons/list-tree";
 import X from "lucide-react-native/icons/x";
-import { EnrichedMarkdownText, type MarkdownStyle } from "react-native-enriched-markdown";
+import {
+  EnrichedMarkdownText,
+  type MarkdownStyle,
+} from "react-native-enriched-markdown";
 import { SvgUri } from "react-native-svg";
 import { StatusBar } from "expo-status-bar";
 import { useTranslation } from "react-i18next";
@@ -52,17 +55,60 @@ const accentStrong = "#8b5cf6";
 const translatedText = "#ddd6fe";
 
 function hasNativeMarkdownRenderer() {
-  return Platform.OS === "web" || UIManager.hasViewManagerConfig("EnrichedMarkdown");
+  return (
+    Platform.OS === "web" || UIManager.hasViewManagerConfig("EnrichedMarkdown")
+  );
 }
 
 const MARKDOWN_STYLE: MarkdownStyle = {
-  paragraph: { color: colors.textSecondary, fontSize: 17, lineHeight: 27, marginBottom: 8 },
-  h1: { color: colors.text, fontSize: 28, lineHeight: 35, marginTop: 22, marginBottom: 10 },
-  h2: { color: colors.text, fontSize: 24, lineHeight: 31, marginTop: 20, marginBottom: 9 },
-  h3: { color: colors.text, fontSize: 21, lineHeight: 28, marginTop: 18, marginBottom: 8 },
-  h4: { color: colors.textSecondary, fontSize: 19, lineHeight: 26, marginTop: 16, marginBottom: 7 },
-  h5: { color: colors.muted, fontSize: 18, lineHeight: 25, marginTop: 14, marginBottom: 7 },
-  h6: { color: colors.muted, fontSize: 17, lineHeight: 24, marginTop: 14, marginBottom: 7 },
+  paragraph: {
+    color: colors.textSecondary,
+    fontSize: 17,
+    lineHeight: 27,
+    marginBottom: 8,
+  },
+  h1: {
+    color: colors.text,
+    fontSize: 28,
+    lineHeight: 35,
+    marginTop: 22,
+    marginBottom: 10,
+  },
+  h2: {
+    color: colors.text,
+    fontSize: 24,
+    lineHeight: 31,
+    marginTop: 20,
+    marginBottom: 9,
+  },
+  h3: {
+    color: colors.text,
+    fontSize: 21,
+    lineHeight: 28,
+    marginTop: 18,
+    marginBottom: 8,
+  },
+  h4: {
+    color: colors.textSecondary,
+    fontSize: 19,
+    lineHeight: 26,
+    marginTop: 16,
+    marginBottom: 7,
+  },
+  h5: {
+    color: colors.muted,
+    fontSize: 18,
+    lineHeight: 25,
+    marginTop: 14,
+    marginBottom: 7,
+  },
+  h6: {
+    color: colors.muted,
+    fontSize: 17,
+    lineHeight: 24,
+    marginTop: 14,
+    marginBottom: 7,
+  },
   link: { color: "#c4b5fd", underline: true },
   blockquote: {
     color: colors.textSecondary,
@@ -99,7 +145,11 @@ const MARKDOWN_STYLE: MarkdownStyle = {
     cellPaddingVertical: 7,
     marginBottom: 12,
   },
-  code: { color: colors.textSecondary, backgroundColor: colors.surfacePressed, fontSize: 14 },
+  code: {
+    color: colors.textSecondary,
+    backgroundColor: colors.surfacePressed,
+    fontSize: 14,
+  },
   codeBlock: {
     color: colors.textSecondary,
     backgroundColor: colors.surface,
@@ -153,7 +203,9 @@ export function PaperViewer({
   const loadController = useRef<AbortController | null>(null);
   const documentRef = useRef<PaperDocument | null>(null);
   const visibleIds = useRef<string[]>([]);
-  const enqueueRef = useRef<(ids: string[]) => Promise<void>>(async () => undefined);
+  const enqueueRef = useRef<(ids: string[]) => Promise<void>>(
+    async () => undefined,
+  );
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 15 }).current;
   const [document, setDocument] = useState<PaperDocument | null>(null);
   const [loading, setLoading] = useState(false);
@@ -203,14 +255,19 @@ export function PaperViewer({
     setDocument(null);
     void loadPaperDocument(paper, sourceUri, controller.signal)
       .then((nextDocument) => {
-        if (loadController.current === controller && !controller.signal.aborted) {
+        if (
+          loadController.current === controller &&
+          !controller.signal.aborted
+        ) {
           setDocument(nextDocument);
         }
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         if (loadController.current !== controller) return;
-        setLoadError(error instanceof Error ? error.message : t("common.unknownError"));
+        setLoadError(
+          error instanceof Error ? error.message : t("common.unknownError"),
+        );
       })
       .finally(() => {
         if (loadController.current === controller) {
@@ -263,7 +320,11 @@ export function PaperViewer({
         const anchor = decodeURIComponent(url.slice(prefix.length));
         const index = anchorIndex.get(anchor);
         if (index !== undefined) {
-          list.current?.scrollToIndex({ index, animated: true, viewPosition: 0.08 });
+          list.current?.scrollToIndex({
+            index,
+            animated: true,
+            viewPosition: 0.08,
+          });
         }
         return;
       }
@@ -349,7 +410,9 @@ export function PaperViewer({
               <PaperHeader
                 paper={paper}
                 mode={mode}
-                translation={translation.translations[PAPER_TITLE_TRANSLATION_ID]}
+                translation={
+                  translation.translations[PAPER_TITLE_TRANSLATION_ID]
+                }
               />
             }
             onViewableItemsChanged={onViewableItemsChanged}
@@ -382,11 +445,13 @@ export function PaperViewer({
           <ReaderError
             message={loadError}
             onRetry={load}
-            onOpenPdf={() => void Linking.openURL(paper.pdfUrl).catch(() => undefined)}
+            onOpenPdf={() =>
+              void Linking.openURL(paper.pdfUrl).catch(() => undefined)
+            }
             onOpenArxiv={() =>
-              void Linking.openURL(`https://arxiv.org/abs/${paper.arxivId}`).catch(
-                () => undefined,
-              )
+              void Linking.openURL(
+                `https://arxiv.org/abs/${paper.arxivId}`,
+              ).catch(() => undefined)
             }
           />
         ) : null}
@@ -436,7 +501,11 @@ export function PaperViewer({
                 hitSlop={8}
                 style={styles.iconButton}
               >
-                <ListTree color={colors.textSecondary} size={20} strokeWidth={1.8} />
+                <ListTree
+                  color={colors.textSecondary}
+                  size={20}
+                  strokeWidth={1.8}
+                />
               </Pressable>
             ) : null}
             {nativeReaderAvailable ? (
@@ -461,7 +530,11 @@ export function PaperViewer({
             const index = anchorIndex.get(id);
             setTocOpen(false);
             if (index !== undefined) {
-              list.current?.scrollToIndex({ index, animated: true, viewPosition: 0.08 });
+              list.current?.scrollToIndex({
+                index,
+                animated: true,
+                viewPosition: 0.08,
+              });
             }
           }}
         />
@@ -508,7 +581,8 @@ function ReaderBlock({
   translation?: string;
   onLinkPress: (event: { url: string }) => void;
 }) {
-  const showSource = mode !== "translation" || !block.translationSource || !translation;
+  const showSource =
+    mode !== "translation" || !block.translationSource || !translation;
   const showTranslation = mode !== "source" && !!translation;
   return (
     <View style={styles.block}>
@@ -519,7 +593,9 @@ function ReaderBlock({
         <PaperMarkdown markdown={block.markdown} onLinkPress={onLinkPress} />
       ) : null}
       {showTranslation ? (
-        <View style={mode === "dual" ? styles.translation : styles.translationOnly}>
+        <View
+          style={mode === "dual" ? styles.translation : styles.translationOnly}
+        >
           <PaperMarkdown
             markdown={translation}
             onLinkPress={onLinkPress}
@@ -623,7 +699,9 @@ function ReaderError({
           <Text style={styles.secondaryButtonText}>{t("reader.openPdf")}</Text>
         </Pressable>
         <Pressable style={styles.secondaryButton} onPress={onOpenArxiv}>
-          <Text style={styles.secondaryButtonText}>{t("reader.openArxiv")}</Text>
+          <Text style={styles.secondaryButtonText}>
+            {t("reader.openArxiv")}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -673,7 +751,10 @@ function ContentsSheet({
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
-              <Pressable style={styles.tocRow} onPress={() => onSelect(item.id)}>
+              <Pressable
+                style={styles.tocRow}
+                onPress={() => onSelect(item.id)}
+              >
                 <Text style={styles.tocText}>{item.plainText}</Text>
               </Pressable>
             )}
@@ -731,8 +812,18 @@ const styles = StyleSheet.create({
   },
   barTitle: { color: colors.text, fontSize: 12, fontWeight: "700" },
   statusText: { color: colors.dim, fontSize: 10, marginTop: 2 },
-  errorText: { color: colors.danger, fontSize: 10, fontWeight: "600", marginTop: 2 },
-  cancelText: { color: colors.muted, fontSize: 10, fontWeight: "600", marginTop: 2 },
+  errorText: {
+    color: colors.danger,
+    fontSize: 10,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  cancelText: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: "600",
+    marginTop: 2,
+  },
   center: {
     ...StyleSheet.absoluteFill,
     alignItems: "center",
@@ -754,7 +845,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     marginBottom: 8,
   },
-  paperTitle: { color: colors.text, fontSize: 30, lineHeight: 37, fontWeight: "800" },
+  paperTitle: {
+    color: colors.text,
+    fontSize: 30,
+    lineHeight: 37,
+    fontWeight: "800",
+  },
   translatedPaperTitle: {
     color: translatedText,
     fontSize: 24,
@@ -783,7 +879,12 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   figureFallback: { color: colors.muted, fontSize: 13, padding: 12 },
-  errorTitle: { color: colors.text, fontSize: 20, fontWeight: "700", textAlign: "center" },
+  errorTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+  },
   errorBody: {
     color: colors.muted,
     fontSize: 14,
@@ -809,7 +910,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  secondaryButtonText: { color: colors.textSecondary, fontSize: 14, fontWeight: "600" },
+  secondaryButtonText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: "600",
+  },
   sheetBackdrop: {
     flex: 1,
     justifyContent: "flex-end",

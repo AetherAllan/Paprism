@@ -9,7 +9,8 @@ export type AppLocale = (typeof APP_LOCALES)[number];
 export type UiLangPref = "system" | AppLocale;
 
 export function deviceUiLang(): AppLocale {
-  const code = Localization.getLocales()[0]?.languageCode?.toLowerCase() ?? "en";
+  const code =
+    Localization.getLocales()[0]?.languageCode?.toLowerCase() ?? "en";
   return code.startsWith("zh") ? "zh" : "en";
 }
 
