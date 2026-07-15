@@ -90,7 +90,7 @@
     "contents": "目录",
     "unavailable": "这篇论文暂时无法使用原生阅读",
     "devClientTitle": "当前安装包缺少原生阅读器",
-    "devClientBody": "请重新编译并安装 ArxivTok 开发客户端。Expo Go 和旧版开发客户端不包含 EnrichedMarkdown。",
+    "devClientBody": "请重新编译并安装 Paprism 开发客户端。Expo Go 和旧版开发客户端不包含 EnrichedMarkdown。",
     "openPdf": "打开 PDF",
     "openArxiv": "在 arXiv 打开"
   },

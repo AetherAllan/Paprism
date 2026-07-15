@@ -1,61 +1,118 @@
 <p align="center">
-  <img src="assets/MainConcept.png" alt="ArxivTok" width="420" />
+  <img src="assets/MainConcept.png" alt="Paprism — swipe through papers" width="100%" />
 </p>
 
-# ArxivTok
+<h1 align="center">Paprism</h1>
 
-TikTok-style vertical feed for [arXiv](https://arxiv.org) papers. **Android-first**, no backend — each device talks to arXiv directly.
+<p align="center">
+  <strong>Discover, read, translate, and save arXiv papers from one focused Android app.</strong>
+</p>
 
-## Features
+<p align="center">
+  <img alt="Expo 57" src="https://img.shields.io/badge/Expo-57-000000?style=flat-square&logo=expo" />
+  <img alt="React Native" src="https://img.shields.io/badge/React_Native-0.86-20232A?style=flat-square&logo=react" />
+  <img alt="Android first" src="https://img.shields.io/badge/platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white" />
+  <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-white?style=flat-square" />
+</p>
 
-- Vertical swipe through paper cards (title, authors, abstract)
-- Category multi-select (**AND** intersection on the API query)
-- Online arXiv search across all papers or the current category selection
-- Native paper reader parsed from arXiv HTML, with selectable text, math, tables, figures, and contents navigation
-- Lazy context-aware bilingual translation through keyless Google or BYOK OpenRouter / OpenAI-compatible profiles
-- Library: saved, history, offline reader packages, and PDF downloads (app storage + Android SAF)
-- UI languages: English / 中文 (follows system or manual)
+<p align="center">
+  <a href="https://github.com/AetherAllan/Paprism/releases/latest"><strong>Download APK</strong></a>
+  ·
+  <a href="#quick-start">Quick start</a>
+  ·
+  <a href="#what-you-can-do">Features</a>
+</p>
 
-## How it works
+## Research should feel browsable
 
-- Official Atom API: `https://export.arxiv.org/api/query`
-- **Rate limit:** serial requests, ≥ **3s** between starts (arXiv ToU)
-- **Prefetch:** 20 papers per page; when 4 remain ahead, the next page loads in the background
+Paprism turns the arXiv feed into a fast, vertical reading experience. Swipe
+through new papers, open a native reader, translate difficult sections, and
+keep the work worth returning to — without creating an account or depending on
+an application backend.
 
-## Run
+## What you can do
 
-Requires [Bun](https://bun.sh), Android native build tools, and a device/emulator with network access to arXiv. The reader uses a native Markdown renderer, so Expo Go is not supported.
+| Discover                                 | Read                                            | Translate                                        | Keep                                 |
+| ---------------------------------------- | ----------------------------------------------- | ------------------------------------------------ | ------------------------------------ |
+| Swipe through fresh paper cards          | Open selectable text, math, tables, and figures | Translate lazily with section context            | Save papers and revisit history      |
+| Combine multiple arXiv categories        | Navigate long papers by section                 | Use keyless Google or your own provider key      | Store offline reader packages        |
+| Search globally or within your selection | Download the original PDF                       | Configure OpenRouter or OpenAI-compatible models | Export downloads through Android SAF |
+
+### Built for focused reading
+
+- **Fast discovery:** 20 papers per page with background prefetching near the
+  end of the feed.
+- **Native paper reader:** arXiv HTML becomes a structured document instead of
+  a cramped web page.
+- **Bilingual workflow:** the interface supports English and 中文, while paper
+  translation is loaded only when requested.
+- **Local ownership:** saved papers, history, downloads, and provider profiles
+  stay on the device.
+- **No application backend:** the app talks directly to the official arXiv API
+  and your selected translation provider.
+
+## Quick start
+
+### Requirements
+
+- [Bun](https://bun.sh)
+- Android Studio and Android native build tools
+- An Android device or emulator with network access to arXiv
+
+The reader uses native modules, so Expo Go is not supported.
 
 ```bash
+git clone https://github.com/AetherAllan/Paprism.git
+cd Paprism
 bun install
 bun run android
 ```
 
-`bun run android` builds and installs the ArxivTok development client. After
-that, use `bun run dev` for normal JavaScript/TypeScript changes.
+After the development client is installed, use Metro for normal
+JavaScript/TypeScript changes:
 
-When a native dependency or `app.json` changes, rebuild the native client:
+```bash
+bun run dev
+```
+
+Rebuild the native client after changing native dependencies or `app.json`:
 
 ```bash
 bunx expo prebuild --clean
 bun run android
 ```
 
-Starting Metro or scanning a QR code does not add native modules to an already
-installed client. See Expo's [development build guide](https://docs.expo.dev/develop/development-builds/expo-go-to-dev-build/).
+## How it works
 
-Checks:
+```text
+Official arXiv Atom API
+          ↓
+Rate-limited feed and search
+          ↓
+Native document parser and reader
+          ↓
+On-demand translation + local library
+```
+
+- **Source:** `https://export.arxiv.org/api/query`
+- **Rate limit:** requests are serialized with at least 3 seconds between
+  starts, following arXiv's API guidance.
+- **Prefetch:** each page contains 20 papers; the next page begins loading when
+  four remain ahead.
+- **Provider keys:** stored in the operating system's secure storage and never
+  persisted in normal application storage.
+
+## Development
 
 ```bash
 bun test
 bun run typecheck
+bun run format
 ```
 
-## Project layout
+The source is organized by product feature:
 
-Feature-first layout — find code by product area:
-
-```
+```text
 index.ts
 Roadmap/
 src/
@@ -72,55 +129,41 @@ src/
   types/
 ```
 
-## Release (Android APK)
+<details>
+<summary><strong>Android release process</strong></summary>
 
-Releases run only when started manually from GitHub Actions, not on every push to `main`.
+Releases run only when started manually from GitHub Actions.
 
 One-time setup:
 
-1. Add repo secret `EXPO_TOKEN` ([Expo access token](https://expo.dev/settings/access-tokens)).
+1. Add `EXPO_TOKEN` as a GitHub Actions secret.
 2. Create the Android keystore on EAS if it does not exist:
 
-```bash
-bunx eas-cli build -p android --profile production
-```
+   ```bash
+   bunx eas-cli build -p android --profile production
+   ```
 
 3. Initialize EAS's remote Android `versionCode` from the latest completed
-   build. The latest known build used `4`, so enter `4` unless a newer build
-   exists in EAS:
+   build:
 
-```bash
-bunx eas-cli build:version:set -p android -e production
-```
+   ```bash
+   bunx eas-cli build:version:set -p android -e production
+   ```
 
-To publish, open **Actions → Release APK → Run workflow** and choose one action:
+To publish, open **Actions → Release APK → Run workflow**, then select `patch`,
+`minor`, `major`, or `retry`. The workflow tests the source, updates the single
+version in `package.json`, builds on EAS, verifies every APK, and only then
+creates the matching Git tag and GitHub Release.
 
-- `patch`: `1.0.1` → `1.0.2`
-- `minor`: `1.0.1` → `1.1.0`
-- `major`: `1.0.1` → `2.0.0`
-- `retry`: rebuild the current untagged version after a failed release
+Each release contains `arm64-v8a`, `armeabi-v7a`, `x86_64`, and universal APKs.
+See [the release notes](Roadmap/release.md) for the artifact design.
 
-The workflow tests the source, updates the single version in `package.json`,
-commits it to the default branch, builds on EAS, verifies every APK, and only
-then creates the matching Git tag and GitHub Release. Expo derives its
-user-facing version from `package.json`; EAS owns and increments Android's
-internal `versionCode`.
-
-Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml). A single EAS build produces four GitHub Release assets:
-
-- `arm64-v8a`: mainstream physical Android devices
-- `armeabi-v7a`: older 32-bit devices
-- `x86_64`: emulators and x86 devices
-- `universal`: compatibility fallback, largest download
+</details>
 
 ## Roadmap
 
-Planned work lives in [`Roadmap/`](Roadmap/):
-
-| Doc                                                          | Topic                                                         |
-| ------------------------------------------------------------ | ------------------------------------------------------------- |
-| [immersive-translation.md](Roadmap/immersive-translation.md) | Native bilingual reader architecture and translation behavior |
-| [release.md](Roadmap/release.md)                             | ABI-specific APKs and release artifact verification           |
+- [Native bilingual reader architecture](Roadmap/immersive-translation.md)
+- [APK packaging and release verification](Roadmap/release.md)
 
 ## License
 

@@ -90,7 +90,7 @@ export async function downloadPaperPdf(
       const res = await downloadAsync(paper.pdfUrl, localUri, {
         headers: {
           "User-Agent":
-            "ArxivTok/1.0 (Android; educational; contact: local-dev)",
+            "Paprism/1.0 (Android; educational; contact: local-dev)",
         },
       });
       if (res.status !== 200) {

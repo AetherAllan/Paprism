@@ -45,6 +45,17 @@ jobs:
           bun run typecheck
           git diff --exit-code
 
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: 21.0.0
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # Check the remote slug/projectId link before the workflow pushes a
+      # release commit. A renamed local slug with a stale EAS project would
+      # otherwise consume a version commit without producing any APKs.
+      - name: Verify EAS project link
+        run: eas project:info
+
       - name: Prepare release version
         id: version
         env:
@@ -76,11 +87,6 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - uses: expo/expo-github-action@v8
-        with:
-          eas-version: 21.0.0
-          token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android APK on EAS
         id: build

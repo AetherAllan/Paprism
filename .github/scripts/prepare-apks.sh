@@ -27,7 +27,7 @@ copy_apk() {
     exit 1
   fi
   match=$(find "$work/extracted" -type f -name "$pattern" -print -quit)
-  cp "$match" "$out/ArxivTok-${tag}-${variant}.apk"
+  cp "$match" "$out/Paprism-${tag}-${variant}.apk"
 }
 
 copy_apk arm64-v8a '*arm64-v8a*release.apk'
@@ -49,15 +49,15 @@ verify_abis() {
   fi
 }
 
-verify_abis "$out/ArxivTok-${tag}-arm64-v8a.apk" arm64-v8a
-verify_abis "$out/ArxivTok-${tag}-armeabi-v7a.apk" armeabi-v7a
-verify_abis "$out/ArxivTok-${tag}-x86_64.apk" x86_64
-verify_abis "$out/ArxivTok-${tag}-universal.apk" arm64-v8a,armeabi-v7a,x86,x86_64
+verify_abis "$out/Paprism-${tag}-arm64-v8a.apk" arm64-v8a
+verify_abis "$out/Paprism-${tag}-armeabi-v7a.apk" armeabi-v7a
+verify_abis "$out/Paprism-${tag}-x86_64.apk" x86_64
+verify_abis "$out/Paprism-${tag}-universal.apk" arm64-v8a,armeabi-v7a,x86,x86_64
 
 for apk in "$out"/*.apk; do
   "$apksigner" verify "$apk"
   badging=$("$aapt" dump badging "$apk" | head -1)
-  [[ "$badging" == *"name='com.arxivtok.app'"* ]] || {
+  [[ "$badging" == *"name='com.paprism.app'"* ]] || {
     echo "Unexpected package in $apk: $badging" >&2
     exit 1
   }

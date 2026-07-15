@@ -315,7 +315,7 @@ export function PaperViewer({
 
   const openLink = useCallback(
     ({ url }: { url: string }) => {
-      const prefix = "arxivtok://anchor/";
+      const prefix = "paprism://anchor/";
       if (url.startsWith(prefix)) {
         const anchor = decodeURIComponent(url.slice(prefix.length));
         const index = anchorIndex.get(anchor);
@@ -467,7 +467,7 @@ export function PaperViewer({
           </Pressable>
           <View style={styles.statusBox}>
             <Text style={styles.barTitle} numberOfLines={1}>
-              {paper ? `arXiv:${paper.arxivId}` : "ArxivTok"}
+              {paper ? `arXiv:${paper.arxivId}` : "Paprism"}
             </Text>
             {mode !== "source" ? (
               <Text style={styles.statusText} numberOfLines={1}>

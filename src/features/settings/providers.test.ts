@@ -55,7 +55,7 @@ describe("provider secret ownership", () => {
 
   test("recreates the fixed Google profile instead of trusting stored data", async () => {
     asyncValues.set(
-      "arxivtok.providerProfiles",
+      "paprism.providerProfiles",
       JSON.stringify([
         {
           id: "fake-google",
@@ -76,7 +76,7 @@ describe("provider secret ownership", () => {
 
   test("drops a persisted provider that would send a key over HTTP", async () => {
     asyncValues.set(
-      "arxivtok.providerProfiles",
+      "paprism.providerProfiles",
       JSON.stringify([
         {
           id: "unsafe",

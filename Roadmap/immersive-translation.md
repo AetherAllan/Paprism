@@ -1,6 +1,6 @@
 # Native immersive reader
 
-ArxivTok fetches `https://arxiv.org/html/{id}`, parses the LaTeXML HTML into its own versioned `PaperDocument`, and renders native React Native views. Remote paper HTML is treated as data; no script or page code is executed.
+Paprism fetches `https://arxiv.org/html/{id}`, parses the LaTeXML HTML into its own versioned `PaperDocument`, and renders native React Native views. Remote paper HTML is treated as data; no script or page code is executed.
 
 ## Data flow
 

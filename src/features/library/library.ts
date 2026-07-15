@@ -3,13 +3,13 @@ import { enqueueStorageWrite } from "@/lib/storageQueue";
 import type { Paper } from "@/types/paper";
 
 const KEYS = {
-  saved: "arxivtok.saved",
-  history: "arxivtok.history",
-  pdfDownloads: "arxivtok.pdfDownloads",
-  legacyDownloads: "arxivtok.downloads",
+  saved: "paprism.saved",
+  history: "paprism.history",
+  pdfDownloads: "paprism.pdfDownloads",
+  legacyDownloads: "paprism.downloads",
   // Keep the shipped key so upgrades retain existing version-1 HTML packages.
-  offlinePapers: "arxivtok.offlineHtml",
-  downloadsDirUri: "arxivtok.downloadsDirUri",
+  offlinePapers: "paprism.offlineHtml",
+  downloadsDirUri: "paprism.downloadsDirUri",
 } as const;
 
 export const HISTORY_CAP = 200;

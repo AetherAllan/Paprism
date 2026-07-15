@@ -117,7 +117,7 @@ async function translatePartBatch(
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
           ...(profile.kind === "openrouter"
-            ? { "X-OpenRouter-Title": "ArxivTok" }
+            ? { "X-OpenRouter-Title": "Paprism" }
             : {}),
         },
         body: JSON.stringify({

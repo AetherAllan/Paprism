@@ -18,8 +18,8 @@ import {
   type ProviderProfile,
 } from "./providerCore";
 
-const PROFILES_KEY = "arxivtok.providerProfiles";
-const ACTIVE_KEY = "arxivtok.activeProviderProfile";
+const PROFILES_KEY = "paprism.providerProfiles";
+const ACTIVE_KEY = "paprism.activeProviderProfile";
 const CATALOG_TTL_MS = 6 * 60 * 60 * 1000;
 
 export type ProviderState = {
@@ -97,7 +97,7 @@ export async function persistProviderState(
 }
 
 function secretKey(profileId: string): string {
-  return `arxivtok.provider.${profileId}.apiKey`;
+  return `paprism.provider.${profileId}.apiKey`;
 }
 
 export async function getProviderApiKey(

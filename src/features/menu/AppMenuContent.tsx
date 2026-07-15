@@ -44,7 +44,7 @@ export function AppMenuContent({
   return (
     <>
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>ARXIVTOK</Text>
+        <Text style={styles.eyebrow}>PAPRISM</Text>
         <Text style={styles.title}>{t("menu.title")}</Text>
       </View>
       <View style={styles.items}>

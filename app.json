@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "ArxivTok",
-    "slug": "arxivtok",
+    "name": "Paprism",
+    "slug": "paprism",
     "orientation": "portrait",
     "icon": "./assets/AndroidLogo.png",
     "userInterfaceStyle": "dark",
     "android": {
-      "package": "com.arxivtok.app",
+      "package": "com.paprism.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0B1426",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/AndroidLogo.png"
       },
       "predictiveBackGestureEnabled": false
@@ -22,7 +22,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/AndroidLogo.png",
-          "backgroundColor": "#0B1426",
+          "backgroundColor": "#000000",
           "imageWidth": 200,
           "resizeMode": "contain"
         }
@@ -36,9 +36,10 @@
       ],
       "./plugins/withAbiSplits"
     ],
+    "owner": "dudeguuuds-organization",
     "extra": {
       "eas": {
-        "projectId": "b5e2b924-3183-4279-ab5f-ada043a30884"
+        "projectId": "79f70aa5-de06-4c9c-8e9d-4c925a23e4ab"
       }
     }
   }

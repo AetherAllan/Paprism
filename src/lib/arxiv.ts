@@ -6,7 +6,7 @@ const BASE = "https://export.arxiv.org/api/query";
 export const ARXIV_PAGE_SIZE = 20;
 /** Official ToU: no more than one request every three seconds. */
 const MIN_GAP_MS = 3000;
-const USER_AGENT = "ArxivTok/1.0 (Android; educational; contact: local-dev)";
+const USER_AGENT = "Paprism/1.0 (Android; educational; contact: local-dev)";
 
 const limiter = new RateLimiter(MIN_GAP_MS);
 

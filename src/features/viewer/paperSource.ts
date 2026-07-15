@@ -6,7 +6,7 @@ import { isPaperDocument, type PaperDocument } from "./paperDocument";
 
 const MAX_HTML_BYTES = 15 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 20_000;
-const USER_AGENT = "ArxivTok/1.0 (Android; educational; contact: local-dev)";
+const USER_AGENT = "Paprism/1.0 (Android; educational; contact: local-dev)";
 
 export type FetchedPaperHtml = {
   html: string;

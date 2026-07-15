@@ -171,7 +171,7 @@ function inline(nodes: ChildNode[], baseUrl: string): InlineResult {
     if (node.name === "a") {
       const href = node.attribs.href ?? "";
       const target = href.startsWith("#")
-        ? `arxivtok://anchor/${encodeURIComponent(href.slice(1))}`
+        ? `paprism://anchor/${encodeURIComponent(href.slice(1))}`
         : absoluteUrl(href, baseUrl);
       if (!target) return child;
       const marker = token("LINK", target);

@@ -4,11 +4,11 @@ import { DEFAULT_CATEGORIES, normalizeCategories } from "./categories";
 import { enqueueStorageWrite } from "./storageQueue";
 
 const KEYS = {
-  categories: "arxivtok.lastCategories",
+  categories: "paprism.lastCategories",
   /** Legacy single-category key — migrated on load. */
-  category: "arxivtok.lastCategory",
-  translateLang: "arxivtok.translateLang",
-  uiLang: "arxivtok.uiLang",
+  category: "paprism.lastCategory",
+  translateLang: "paprism.translateLang",
+  uiLang: "paprism.uiLang",
 } as const;
 
 /** `"system"` = follow device locale; otherwise a Google Translate `tl` code. */

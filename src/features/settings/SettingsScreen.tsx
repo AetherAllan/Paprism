@@ -157,7 +157,7 @@ export function SettingsScreen({
                 <View style={styles.aboutHeading}>
                   <Info color={colors.text} size={21} strokeWidth={1.8} />
                   <View>
-                    <Text style={styles.aboutTitle}>ArxivTok</Text>
+                    <Text style={styles.aboutTitle}>Paprism</Text>
                     <Text style={styles.aboutBody}>
                       {t("settings.version", { version: "1.0.0" })}
                     </Text>

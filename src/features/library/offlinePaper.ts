@@ -17,7 +17,7 @@ const FORMAT_VERSION = 2;
 const MAX_PACKAGE_BYTES = 50 * 1024 * 1024;
 const MAX_RESOURCE_BYTES = 15 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 20_000;
-const USER_AGENT = "ArxivTok/1.0 (Android; educational; contact: local-dev)";
+const USER_AGENT = "Paprism/1.0 (Android; educational; contact: local-dev)";
 
 type Resource = { bytes: Uint8Array; contentType: string };
 

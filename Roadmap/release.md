@@ -35,7 +35,7 @@ EAS artifacts may differ slightly because cloud signing and tool versions can ch
 
 ## EAS release measurement
 
-Build [`06a684ed-963e-46d4-8412-9c19339331d7`](https://expo.dev/accounts/dudeguuuds-organization/projects/arxivtok/builds/06a684ed-963e-46d4-8412-9c19339331d7) produced version `1.0.0` (`versionCode` 3). The downloaded archive passed signature, package-name, version, APK-count, and native-ABI checks.
+A pre-rebrand EAS build (`06a684ed-963e-46d4-8412-9c19339331d7`) produced version `1.0.0` (`versionCode` 3). The downloaded archive passed signature, package-name, version, APK-count, and native-ABI checks. The build remains in the retired EAS project, so this document keeps the measurement without linking to the old project.
 
 | APK         |      Bytes | Display size |
 | ----------- | ---------: | -----------: |

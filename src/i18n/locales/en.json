@@ -90,7 +90,7 @@
     "contents": "Contents",
     "unavailable": "Native reading is unavailable for this paper",
     "devClientTitle": "This build is missing the native reader",
-    "devClientBody": "Rebuild and install the ArxivTok development client. Expo Go and older development builds do not include EnrichedMarkdown.",
+    "devClientBody": "Rebuild and install the Paprism development client. Expo Go and older development builds do not include EnrichedMarkdown.",
     "openPdf": "Open PDF",
     "openArxiv": "Open on arXiv"
   },

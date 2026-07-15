@@ -33,7 +33,7 @@ describe("download metadata migration", () => {
 
   test("moves legacy PDF rows without retaining duplicate Paper fields", async () => {
     values.set(
-      "arxivtok.downloads",
+      "paprism.downloads",
       JSON.stringify([
         {
           id: "legacy-duplicate",
@@ -54,9 +54,9 @@ describe("download metadata migration", () => {
       localUri: "file:///paper.pdf",
       exported: true,
     });
-    expect(values.has("arxivtok.downloads")).toBe(false);
+    expect(values.has("paprism.downloads")).toBe(false);
     expect(
-      JSON.parse(values.get("arxivtok.pdfDownloads") ?? "[]")[0],
+      JSON.parse(values.get("paprism.pdfDownloads") ?? "[]")[0],
     ).not.toHaveProperty("id");
   });
 });
