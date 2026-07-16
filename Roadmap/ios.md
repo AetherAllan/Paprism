@@ -28,7 +28,8 @@ ready for distribution on iPhone.
 - Verify Safe Area layout on small, notched, and Dynamic Island devices.
 - Regress feed paging, abstract scrolling, rapid gestures, and reduced motion.
 - Verify SecureStore persistence, provider editing, native Markdown, equations,
-  tables, figures, and external links.
+  tables, figures, external links, Ask streaming, chat persistence, and optional
+  semantic retrieval.
 - Verify offline reader packages, cancellation, PDF sharing, airplane-mode
   reading, dark appearance, and dynamic text sizes.
 - Treat a real iPhone pass as required; Simulator success alone is insufficient
@@ -37,7 +38,8 @@ ready for distribution on iPhone.
 ## 4. TestFlight and store readiness
 
 - Add a privacy policy covering arXiv requests, local data, SecureStore keys,
-  and paper text sent directly to a user-selected translation provider.
+  and paper text sent directly to user-selected translation, Ask, and embedding
+  providers.
 - Prepare App Store screenshots, support URL, age rating, privacy declarations,
   review notes, and export-compliance answers.
 - Upload an internal TestFlight build, complete the device matrix, then request

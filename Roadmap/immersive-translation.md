@@ -7,8 +7,9 @@ Paprism fetches `https://arxiv.org/html/{id}`, parses the LaTeXML HTML into its 
 1. `paperSource.ts` downloads a bounded HTML response through the shared arXiv rate limiter.
 2. `arxivHtmlParser.ts` extracts stable blocks: headings, paragraphs, lists, quotes, equations, tables, figures, and code.
 3. Inline formulas and link targets become protected markers before translation, then are restored only when every marker survives exactly once.
-4. `PaperViewer.tsx` virtualizes blocks and requests visible translations plus a small forward window.
-5. Offline downloads store `document.json` and referenced figures only. Version-1 HTML packages are parsed locally for backward compatibility.
+4. The reader loads the saved semantic block ID with the document and starts the first `FlatList` render at that block. It does not render the summary first and race a corrective scroll against Markdown layout.
+5. `PaperViewer.tsx` virtualizes the remaining blocks and requests visible translations plus a small forward window.
+6. Offline downloads store `document.json` and referenced figures only. Version-1 HTML packages are parsed locally for backward compatibility.
 
 ## Translation behavior
 
@@ -23,6 +24,7 @@ Paprism fetches `https://arxiv.org/html/{id}`, parses the LaTeXML HTML into its 
 
 - Native text selection and accessibility semantics.
 - Native LaTeX rendering; no WebView fallback.
+- Reading positions use stable block IDs instead of document-wide pixel offsets and are updated as the visible block changes.
 - Internal table-of-contents links scroll to parsed block anchors.
 - Unsupported or unavailable arXiv HTML shows explicit retry, PDF, and arXiv fallbacks.
 - Online paper content, offline files, and model output are never trusted as executable instructions.
@@ -38,6 +40,7 @@ Paprism fetches `https://arxiv.org/html/{id}`, parses the LaTeXML HTML into its 
 - `src/features/viewer/arxivHtmlParser.ts`
 - `src/features/viewer/paperDocument.ts`
 - `src/features/viewer/PaperViewer.tsx`
+- `src/features/viewer/readerPosition.ts`
 - `src/features/viewer/useDocumentTranslation.ts`
 - `src/features/viewer/translator.ts`
 - `src/features/library/offlinePaper.ts`

@@ -5,7 +5,7 @@
 <h1 align="center">Paprism</h1>
 
 <p align="center">
-  <strong>Discover, read, translate, and save arXiv papers from one focused Android app.</strong>
+  <strong>Discover, read, translate, ask, and save arXiv papers from one focused Android app.</strong>
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@
   ·
   <a href="#what-you-can-do">Features</a>
   ·
-  <a href="Roadmap/ios.md">iOS roadmap</a>
+  <a href="#roadmap">Roadmap</a>
 </p>
 
 ## Research should feel browsable
@@ -34,11 +34,11 @@ an application backend.
 
 ## What you can do
 
-| Discover                                 | Read                                            | Translate                                        | Keep                                 |
-| ---------------------------------------- | ----------------------------------------------- | ------------------------------------------------ | ------------------------------------ |
-| Swipe through fresh paper cards          | Open selectable text, math, tables, and figures | Translate lazily with section context            | Save papers and revisit history      |
-| Combine multiple arXiv categories        | Navigate long papers by section                 | Use keyless Google or your own provider key      | Store offline reader packages        |
-| Search globally or within your selection | Download the original PDF                       | Configure OpenRouter or OpenAI-compatible models | Export downloads through Android SAF |
+| Discover                                 | Read                                             | Translate                                        | Ask & keep                                      |
+| ---------------------------------------- | ------------------------------------------------ | ------------------------------------------------ | ----------------------------------------------- |
+| Swipe through fresh paper cards          | Open selectable text, math, tables, and figures  | Translate lazily with section context            | Ask about the paper with streamed Markdown      |
+| Combine multiple arXiv categories        | Resume directly at the last semantic block       | Use keyless Google or your own provider key      | Add optional semantic retrieval and citations   |
+| Search globally or within your selection | Navigate by section or download the original PDF | Configure OpenRouter or OpenAI-compatible models | Save history, PDFs, and offline reader packages |
 
 ### Built for focused reading
 
@@ -46,12 +46,20 @@ an application backend.
   end of the feed.
 - **Native paper reader:** arXiv HTML becomes a structured document instead of
   a cramped web page.
+- **Reading continuity:** each paper reopens at its last visible semantic block
+  without rendering the summary and scrolling down afterward.
 - **Bilingual workflow:** the interface supports English and 中文, while paper
   translation is loaded only when requested.
-- **Local ownership:** saved papers, history, downloads, and provider profiles
-  stay on the device.
+- **Paprism Ask:** Android readers can ask about a selected passage or the
+  current paper, receive streaming Markdown, and optionally use semantic
+  retrieval or OpenRouter web search.
+- **Local ownership:** saved papers, history, downloads, chats, citations,
+  vectors, reading positions, and provider profiles stay on the device.
 - **No application backend:** the app talks directly to the official arXiv API
-  and your selected translation provider.
+  and the translation, chat, or embedding providers you select.
+- **Update awareness:** the app checks the latest stable GitHub Release once at
+  launch, shows a non-blocking red dot when an update exists, and leaves
+  download and installation under your control.
 
 ## Quick start
 
@@ -92,8 +100,10 @@ Official arXiv Atom API
 Rate-limited feed and search
           ↓
 Native document parser and reader
-          ↓
-On-demand translation + local library
+      ↙                 ↘
+On-demand translation   Ask + optional retrieval
+      ↘                 ↙
+ Local library, chats, and reading positions
 ```
 
 - **Source:** `https://export.arxiv.org/api/query`
@@ -103,6 +113,11 @@ On-demand translation + local library
   four remain ahead.
 - **Provider keys:** stored in the operating system's secure storage and never
   persisted in normal application storage.
+- **Model selection:** translation and Ask share compatible provider profiles
+  but keep independent active selections. Embedding remains an optional,
+  separate profile.
+- **Updates:** the app checks the latest stable GitHub Release with a 15-second
+  timeout. It never retries automatically; users can check again from About.
 
 ## Development
 
@@ -126,9 +141,12 @@ src/
   App.tsx
   features/
     feed/
+    ask/
     library/
     viewer/
     categories/
+    menu/
+    search/
     settings/
   shared/
   lib/
@@ -170,6 +188,7 @@ See [the release notes](Roadmap/release.md) for the artifact design.
 ## Roadmap
 
 - [Native bilingual reader architecture](Roadmap/immersive-translation.md)
+- [Ask and semantic retrieval](Roadmap/ask.md)
 - [APK packaging and release verification](Roadmap/release.md)
 - [iOS support and TestFlight readiness](Roadmap/ios.md)
 
