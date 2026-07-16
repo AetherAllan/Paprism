@@ -1,6 +1,6 @@
 {
   "name": "paprism",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "main": "index.ts",
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
