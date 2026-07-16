@@ -242,6 +242,7 @@ export default function App() {
           onIndexChange={feed.onIndexChange}
           status={feed.status}
           error={feed.error}
+          offline={feed.offline}
           paginationStatus={feed.paginationStatus}
           paginationError={feed.paginationError}
           onRetry={feed.retry}

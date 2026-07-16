@@ -3,6 +3,7 @@ import { normalizeCategories } from "@/lib/categories";
 import { ARXIV_PAGE_SIZE, fetchPaperPage } from "@/lib/arxiv";
 import i18n from "@/i18n";
 import type { Paper } from "@/types/paper";
+import { isOfflineFeedError } from "./feedError";
 import { shouldPrefetch } from "./feedPaging";
 
 type Status = "idle" | "loading" | "ready" | "error";
@@ -16,6 +17,7 @@ export function usePaperFeed(categories: string[]) {
   const [papers, setPapers] = useState<Paper[]>([]);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [offline, setOffline] = useState(false);
   const [index, setIndex] = useState(0);
   const [paginationStatus, setPaginationStatus] =
     useState<PaginationStatus>("idle");
@@ -56,6 +58,7 @@ export function usePaperFeed(categories: string[]) {
       setPaginationError(null);
     }
     setError(null);
+    if (isReset || papersLen.current === 0) setOffline(false);
 
     try {
       const start = isReset ? 0 : nextStart.current;
@@ -95,7 +98,11 @@ export function usePaperFeed(categories: string[]) {
       const msg =
         e instanceof Error ? e.message : i18n.t("common.failedLoadPapers");
       if (papersLen.current === 0) {
-        setError(msg);
+        const isOffline = isOfflineFeedError(e);
+        setOffline(isOffline);
+        // Platform exception text is useful to developers but hostile to users.
+        // The offline screen owns the localized explanation for this case.
+        setError(isOffline ? null : msg);
         setStatus("error");
       } else {
         setPaginationError(msg);
@@ -153,6 +160,7 @@ export function usePaperFeed(categories: string[]) {
     papers,
     status,
     error,
+    offline,
     index,
     paginationStatus,
     paginationError,

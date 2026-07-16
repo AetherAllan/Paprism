@@ -34,6 +34,11 @@
     "title": "Local data was recovered",
     "body": "Some local data could not be loaded. Paprism continued with safe defaults; the affected local items may need to be configured or saved again."
   },
+  "network": {
+    "offlineTitle": "You're offline",
+    "offlineBody": "Connect to Wi-Fi or mobile data, then try again.",
+    "openWifi": "Open Wi-Fi settings"
+  },
   "menu": {
     "title": "Menu",
     "search": "Search",

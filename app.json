@@ -18,6 +18,7 @@
     },
     "plugins": [
       "expo-localization",
+      "expo-status-bar",
       [
         "expo-splash-screen",
         {

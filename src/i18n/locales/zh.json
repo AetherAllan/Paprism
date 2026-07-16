@@ -34,6 +34,11 @@
     "title": "本地数据已降级恢复",
     "body": "部分本地数据无法读取。Paprism 已使用安全默认值继续启动；受影响的内容可能需要重新设置或保存。"
   },
+  "network": {
+    "offlineTitle": "设备尚未联网",
+    "offlineBody": "请打开 Wi-Fi 或移动网络，联网后再重试。",
+    "openWifi": "打开 Wi-Fi 设置"
+  },
   "menu": {
     "title": "菜单",
     "search": "搜索",

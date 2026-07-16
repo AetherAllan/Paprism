@@ -7,8 +7,10 @@ import {
   View,
   type LayoutChangeEvent,
 } from "react-native";
+import * as IntentLauncher from "expo-intent-launcher";
 import Menu from "lucide-react-native/icons/menu";
 import Tags from "lucide-react-native/icons/tags";
+import WifiOff from "lucide-react-native/icons/wifi-off";
 import { useTranslation } from "react-i18next";
 import Animated, {
   Easing,
@@ -38,6 +40,7 @@ type Props = {
   onIndexChange: (index: number) => void;
   status: "idle" | "loading" | "ready" | "error";
   error: string | null;
+  offline: boolean;
   paginationStatus: PaginationStatus;
   paginationError: string | null;
   onRetry: () => void;
@@ -61,6 +64,7 @@ export function PaperFeed({
   onIndexChange,
   status,
   error,
+  offline,
   paginationStatus,
   paginationError,
   onRetry,
@@ -188,15 +192,42 @@ export function PaperFeed({
   }
 
   if (status === "error" && papers.length === 0) {
+    const openWifiSettings = () => {
+      void IntentLauncher.startActivityAsync(
+        IntentLauncher.ActivityAction.WIFI_SETTINGS,
+      ).catch(() => undefined);
+    };
     return (
       <View style={styles.center}>
-        <Text style={styles.errorTitle}>{t("common.loadFeedFailed")}</Text>
-        <Text style={styles.errorBody}>
-          {error ?? t("common.unknownError")}
+        {offline ? (
+          <WifiOff
+            color={colors.dim}
+            size={40}
+            strokeWidth={1.5}
+            style={styles.offlineIcon}
+          />
+        ) : null}
+        <Text style={styles.errorTitle}>
+          {t(offline ? "network.offlineTitle" : "common.loadFeedFailed")}
         </Text>
-        <Pressable style={styles.retry} onPress={onRetry}>
-          <Text style={styles.retryText}>{t("common.retry")}</Text>
-        </Pressable>
+        <Text style={styles.errorBody}>
+          {offline
+            ? t("network.offlineBody")
+            : (error ?? t("common.unknownError"))}
+        </Text>
+        <View style={styles.errorActions}>
+          {offline ? (
+            <Pressable style={styles.retry} onPress={openWifiSettings}>
+              <Text style={styles.retryText}>{t("network.openWifi")}</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            style={offline ? styles.secondaryRetry : styles.retry}
+            onPress={onRetry}
+          >
+            <Text style={styles.retryText}>{t("common.retry")}</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -397,6 +428,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 20,
   },
+  offlineIcon: {
+    marginBottom: 18,
+  },
+  errorActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   retry: {
     backgroundColor: colors.surfacePressed,
     paddingHorizontal: 20,
@@ -406,5 +445,12 @@ const styles = StyleSheet.create({
   retryText: {
     color: colors.text,
     fontWeight: "600",
+  },
+  secondaryRetry: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: radii.medium,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
 });
