@@ -187,8 +187,62 @@ export function PaperFeed({
     ],
   );
 
+  const header = (
+    <View style={[styles.header, { paddingTop: Math.max(insets.top, 8) }]}>
+      <Pressable onPress={onOpenCategories} style={styles.catBtn} hitSlop={8}>
+        <View style={styles.catIcon}>
+          <Tags color={colors.text} size={18} strokeWidth={1.8} />
+        </View>
+        <View style={styles.catCopy}>
+          <Text style={styles.catLabel} numberOfLines={1}>
+            {categoriesSummary(categories)}
+          </Text>
+          <Text style={styles.catHint}>
+            {categories.length > 1
+              ? t("common.selectedChange", { count: categories.length })
+              : t("common.change")}
+          </Text>
+        </View>
+      </Pressable>
+      <View style={styles.headerRight}>
+        {paginationStatus !== "idle" ? (
+          <View style={styles.pageMeta}>
+            {paginationStatus === "loading" ? (
+              <Text style={styles.pageStatus}>{t("common.loadingMore")}</Text>
+            ) : paginationStatus === "error" ? (
+              <Pressable
+                onPress={onRetry}
+                hitSlop={8}
+                accessibilityHint={paginationError ?? undefined}
+              >
+                <Text style={styles.pageError}>{t("common.retryMore")}</Text>
+              </Pressable>
+            ) : paginationStatus === "exhausted" ? (
+              <Text style={styles.pageStatus}>{t("common.endOfFeed")}</Text>
+            ) : null}
+          </View>
+        ) : null}
+        <Pressable
+          accessibilityLabel={t("menu.title")}
+          onPress={onOpenMenu}
+          style={({ pressed }) => [
+            styles.menuButton,
+            pressed && styles.menuButtonPressed,
+          ]}
+        >
+          <Menu color={colors.text} size={21} strokeWidth={1.8} />
+        </Pressable>
+      </View>
+    </View>
+  );
+
   if (status === "loading" && papers.length === 0) {
-    return <LoadingScreen />;
+    return (
+      <View style={styles.root}>
+        {header}
+        <LoadingScreen />
+      </View>
+    );
   }
 
   if (status === "error" && papers.length === 0) {
@@ -251,52 +305,7 @@ export function PaperFeed({
 
   return (
     <View style={styles.root}>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 8) }]}>
-        <Pressable onPress={onOpenCategories} style={styles.catBtn} hitSlop={8}>
-          <View style={styles.catIcon}>
-            <Tags color={colors.text} size={18} strokeWidth={1.8} />
-          </View>
-          <View style={styles.catCopy}>
-            <Text style={styles.catLabel} numberOfLines={1}>
-              {categoriesSummary(categories)}
-            </Text>
-            <Text style={styles.catHint}>
-              {categories.length > 1
-                ? t("common.selectedChange", { count: categories.length })
-                : t("common.change")}
-            </Text>
-          </View>
-        </Pressable>
-        <View style={styles.headerRight}>
-          {paginationStatus !== "idle" ? (
-            <View style={styles.pageMeta}>
-              {paginationStatus === "loading" ? (
-                <Text style={styles.pageStatus}>{t("common.loadingMore")}</Text>
-              ) : paginationStatus === "error" ? (
-                <Pressable
-                  onPress={onRetry}
-                  hitSlop={8}
-                  accessibilityHint={paginationError ?? undefined}
-                >
-                  <Text style={styles.pageError}>{t("common.retryMore")}</Text>
-                </Pressable>
-              ) : paginationStatus === "exhausted" ? (
-                <Text style={styles.pageStatus}>{t("common.endOfFeed")}</Text>
-              ) : null}
-            </View>
-          ) : null}
-          <Pressable
-            accessibilityLabel={t("menu.title")}
-            onPress={onOpenMenu}
-            style={({ pressed }) => [
-              styles.menuButton,
-              pressed && styles.menuButtonPressed,
-            ]}
-          >
-            <Menu color={colors.text} size={21} strokeWidth={1.8} />
-          </Pressable>
-        </View>
-      </View>
+      {header}
 
       <Animated.FlatList
         ref={listRef}
