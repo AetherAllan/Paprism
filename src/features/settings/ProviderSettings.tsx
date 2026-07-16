@@ -16,9 +16,23 @@ import type { useProviderProfiles } from "./useProviderProfiles";
 
 type Manager = ReturnType<typeof useProviderProfiles>;
 
-type Props = { manager: Manager };
+type Props = {
+  manager: Manager;
+  activeProfileId?: string | null;
+  onSelect?: (profileId: string) => Promise<void>;
+  includeGoogle?: boolean;
+  title?: string;
+  hint?: string;
+};
 
-export function ProviderSettings({ manager }: Props) {
+export function ProviderSettings({
+  manager,
+  activeProfileId = manager.activeProfileId,
+  onSelect = manager.setActiveProfileId,
+  includeGoogle = true,
+  title,
+  hint,
+}: Props) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<ProviderProfile | null>(null);
 
@@ -34,36 +48,38 @@ export function ProviderSettings({ manager }: Props) {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.heading}>{t("provider.title")}</Text>
-      <Text style={styles.hint}>{t("provider.hint")}</Text>
-      {manager.profiles.map((profile) => (
-        <View key={profile.id} style={styles.profileRow}>
-          <Pressable
-            style={styles.profileMain}
-            onPress={() => void manager.setActiveProfileId(profile.id)}
-          >
-            <View style={styles.profileTitle}>
-              {manager.activeProfileId === profile.id ? (
-                <Check color={colors.text} size={15} strokeWidth={2} />
-              ) : null}
-              <Text style={styles.profileName}>{profile.name}</Text>
-            </View>
-            <Text style={styles.profileModel} numberOfLines={1}>
-              {profile.model || t("provider.noModel")}
-            </Text>
-          </Pressable>
-          {profile.id !== GOOGLE_PROFILE_ID ? (
+      <Text style={styles.heading}>{title ?? t("provider.title")}</Text>
+      <Text style={styles.hint}>{hint ?? t("provider.hint")}</Text>
+      {manager.profiles
+        .filter((profile) => includeGoogle || profile.id !== GOOGLE_PROFILE_ID)
+        .map((profile) => (
+          <View key={profile.id} style={styles.profileRow}>
             <Pressable
-              accessibilityLabel={t("provider.edit")}
-              onPress={() => setDraft(profile)}
-              hitSlop={8}
-              style={styles.iconButton}
+              style={styles.profileMain}
+              onPress={() => void onSelect(profile.id)}
             >
-              <Pencil color={colors.muted} size={16} strokeWidth={1.8} />
+              <View style={styles.profileTitle}>
+                {activeProfileId === profile.id ? (
+                  <Check color={colors.text} size={15} strokeWidth={2} />
+                ) : null}
+                <Text style={styles.profileName}>{profile.name}</Text>
+              </View>
+              <Text style={styles.profileModel} numberOfLines={1}>
+                {profile.model || t("provider.noModel")}
+              </Text>
             </Pressable>
-          ) : null}
-        </View>
-      ))}
+            {profile.id !== GOOGLE_PROFILE_ID ? (
+              <Pressable
+                accessibilityLabel={t("provider.edit")}
+                onPress={() => setDraft(profile)}
+                hitSlop={8}
+                style={styles.iconButton}
+              >
+                <Pencil color={colors.muted} size={16} strokeWidth={1.8} />
+              </Pressable>
+            ) : null}
+          </View>
+        ))}
       <View style={styles.addRow}>
         <Pressable
           style={styles.addButton}

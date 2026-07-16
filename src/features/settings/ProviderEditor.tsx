@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Modal,
@@ -9,20 +9,15 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Check from "lucide-react-native/icons/check";
 import Trash2 from "lucide-react-native/icons/trash-2";
 import X from "lucide-react-native/icons/x";
 import { useTranslation } from "react-i18next";
-import Animated, { FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radii } from "@/shared/theme";
-import {
-  searchModels,
-  type ModelOption,
-  type ProviderProfile,
-} from "./providerCore";
+import { type ModelOption, type ProviderProfile } from "./providerCore";
 import { fetchModelCatalog } from "./providers";
 import type { useProviderProfiles } from "./useProviderProfiles";
+import { ModelPicker } from "./ModelPicker";
 
 type Manager = ReturnType<typeof useProviderProfiles>;
 const SAVED_KEY_MASK = "••••••••••••";
@@ -40,7 +35,6 @@ export function ProviderEditor({
   const insets = useSafeAreaInsets();
   const [form, setForm] = useState<ProviderProfile | null>(draft);
   const [apiKey, setApiKey] = useState("");
-  const [query, setQuery] = useState("");
   const [models, setModels] = useState<ModelOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSavedKey, setHasSavedKey] = useState(false);
@@ -70,11 +64,6 @@ export function ProviderEditor({
       cancelled = true;
     };
   }, [draft, getApiKey, isExisting]);
-
-  const visibleModels = useMemo(
-    () => searchModels(models, query).slice(0, 50),
-    [models, query],
-  );
 
   if (!draft || !form) return null;
 
@@ -186,52 +175,11 @@ export function ProviderEditor({
                 : t("provider.testAndLoad")}
             </Text>
           </Pressable>
-          {models.length > 0 ? (
-            <>
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder={t("provider.searchModels")}
-                placeholderTextColor={colors.dim}
-                style={styles.input}
-              />
-              {visibleModels.map((model) => {
-                const selected = model.id === form.model;
-                return (
-                  <Pressable
-                    key={model.id}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: selected }}
-                    style={({ pressed }) => [
-                      styles.modelRow,
-                      selected && styles.modelRowSelected,
-                      pressed && styles.modelRowPressed,
-                    ]}
-                    onPress={() => setForm({ ...form, model: model.id })}
-                  >
-                    <View style={styles.modelMain}>
-                      <Text style={styles.modelName} numberOfLines={1}>
-                        {model.name}
-                        {model.free ? ` · ${t("provider.free")}` : ""}
-                      </Text>
-                      <Text style={styles.modelId} numberOfLines={1}>
-                        {model.id}
-                      </Text>
-                    </View>
-                    {selected ? (
-                      <Animated.View entering={FadeIn.duration(140)}>
-                        <Check
-                          color={colors.text}
-                          size={19}
-                          strokeWidth={2.2}
-                        />
-                      </Animated.View>
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-            </>
-          ) : null}
+          <ModelPicker
+            models={models}
+            selectedId={form.model}
+            onSelect={(model) => setForm({ ...form, model })}
+          />
           {manager.profiles.some((profile) => profile.id === form.id) ? (
             <Pressable style={styles.deleteButton} onPress={remove}>
               <Trash2 color={colors.danger} size={17} strokeWidth={1.8} />
@@ -389,22 +337,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   testText: { color: colors.inverse, fontWeight: "700" },
-  modelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    minHeight: 58,
-    gap: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderRadius: radii.small,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  modelRowSelected: { backgroundColor: colors.surfacePressed },
-  modelRowPressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
-  modelMain: { flex: 1 },
-  modelName: { color: colors.text, fontSize: 14, fontWeight: "600" },
-  modelId: { color: colors.dim, fontSize: 12, marginTop: 3 },
   deleteButton: {
     marginTop: 28,
     minHeight: 44,

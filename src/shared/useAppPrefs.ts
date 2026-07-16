@@ -5,6 +5,7 @@ import {
   loadPrefs,
   resetPrefs,
   saveCategories,
+  saveAskEnabled,
   saveTranslateLang,
   saveUiLang,
   type AppPrefs,
@@ -62,6 +63,11 @@ export function useAppPrefs() {
     await i18n.changeLanguage(resolveUiLang(lang));
   }, []);
 
+  const setAskEnabled = useCallback((enabled: boolean) => {
+    setPrefs((previous) => ({ ...previous, askEnabled: enabled }));
+    void saveAskEnabled(enabled);
+  }, []);
+
   const reset = useCallback(async () => {
     const next = await resetPrefs();
     setPrefs(next);
@@ -77,6 +83,7 @@ export function useAppPrefs() {
     setCategories,
     setTranslateLang,
     setUiLang,
+    setAskEnabled,
     reset,
   };
 }

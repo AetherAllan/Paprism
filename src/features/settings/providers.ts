@@ -20,6 +20,7 @@ import {
 
 const PROFILES_KEY = "paprism.providerProfiles";
 const ACTIVE_KEY = "paprism.activeProviderProfile";
+const ASK_ACTIVE_KEY = "paprism.activeAskProviderProfile";
 const CATALOG_TTL_MS = 6 * 60 * 60 * 1000;
 
 export type ProviderState = {
@@ -100,6 +101,20 @@ export async function persistProviderState(
       await AsyncStorage.removeItem(ACTIVE_KEY);
     }
   });
+}
+
+export async function loadAskProviderId(): Promise<string | null> {
+  return AsyncStorage.getItem(ASK_ACTIVE_KEY);
+}
+
+export async function persistAskProviderId(
+  profileId: string | null,
+): Promise<void> {
+  await enqueueStorageWrite(() =>
+    profileId
+      ? AsyncStorage.setItem(ASK_ACTIVE_KEY, profileId)
+      : AsyncStorage.removeItem(ASK_ACTIVE_KEY),
+  );
 }
 
 function secretKey(profileId: string): string {

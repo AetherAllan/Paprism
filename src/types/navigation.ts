@@ -4,5 +4,6 @@ export type AppSection =
   | "history"
   | "downloads"
   | "translation"
+  | "ask"
   | "language"
   | "about";

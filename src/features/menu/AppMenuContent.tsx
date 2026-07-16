@@ -6,6 +6,7 @@ import Download from "lucide-react-native/icons/download";
 import History from "lucide-react-native/icons/history";
 import Info from "lucide-react-native/icons/info";
 import Languages from "lucide-react-native/icons/languages";
+import MessageCircleQuestion from "lucide-react-native/icons/message-circle-question-mark";
 import Search from "lucide-react-native/icons/search";
 import Settings2 from "lucide-react-native/icons/settings-2";
 import { useTranslation } from "react-i18next";
@@ -30,6 +31,7 @@ const ITEMS: Item[] = [
     icon: Languages,
     separated: true,
   },
+  { id: "ask", labelKey: "menu.ask", icon: MessageCircleQuestion },
   { id: "language", labelKey: "menu.language", icon: Settings2 },
   { id: "about", labelKey: "settings.about", icon: Info },
 ];

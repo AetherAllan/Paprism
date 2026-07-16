@@ -9,6 +9,7 @@ const KEYS = {
   category: "paprism.lastCategory",
   translateLang: "paprism.translateLang",
   uiLang: "paprism.uiLang",
+  askEnabled: "paprism.askEnabled",
 } as const;
 
 /** `"system"` = follow device locale; otherwise a Google Translate `tl` code. */
@@ -18,12 +19,14 @@ export type AppPrefs = {
   categories: string[];
   translateLang: TranslateLangPref;
   uiLang: UiLangPref;
+  askEnabled: boolean;
 };
 
 export const DEFAULT_PREFS: AppPrefs = {
   categories: [...DEFAULT_CATEGORIES],
   translateLang: "system",
   uiLang: "system",
+  askEnabled: true,
 };
 
 function parseUiLang(raw: string | null): UiLangPref {
@@ -58,10 +61,11 @@ async function loadCategories(): Promise<string[]> {
 }
 
 export async function loadPrefs(): Promise<AppPrefs> {
-  const [categories, translateLang, uiLang] = await Promise.all([
+  const [categories, translateLang, uiLang, askEnabled] = await Promise.all([
     loadCategories(),
     AsyncStorage.getItem(KEYS.translateLang),
     AsyncStorage.getItem(KEYS.uiLang),
+    AsyncStorage.getItem(KEYS.askEnabled),
   ]);
 
   return {
@@ -69,6 +73,7 @@ export async function loadPrefs(): Promise<AppPrefs> {
     translateLang:
       translateLang && translateLang.length > 0 ? translateLang : "system",
     uiLang: parseUiLang(uiLang),
+    askEnabled: askEnabled !== "false",
   };
 }
 
@@ -91,6 +96,12 @@ export async function saveUiLang(lang: UiLangPref): Promise<void> {
   await enqueueStorageWrite(() => AsyncStorage.setItem(KEYS.uiLang, lang));
 }
 
+export async function saveAskEnabled(enabled: boolean): Promise<void> {
+  await enqueueStorageWrite(() =>
+    AsyncStorage.setItem(KEYS.askEnabled, String(enabled)),
+  );
+}
+
 export async function resetPrefs(): Promise<AppPrefs> {
   await enqueueStorageWrite(() =>
     AsyncStorage.multiRemove([
@@ -98,12 +109,14 @@ export async function resetPrefs(): Promise<AppPrefs> {
       KEYS.category,
       KEYS.translateLang,
       KEYS.uiLang,
+      KEYS.askEnabled,
     ]),
   );
   return {
     categories: [...DEFAULT_CATEGORIES],
     translateLang: "system",
     uiLang: "system",
+    askEnabled: true,
   };
 }
 

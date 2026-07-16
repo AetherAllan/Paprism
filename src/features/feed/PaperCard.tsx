@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Pressable,
@@ -21,6 +21,10 @@ import { runOnJS } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radii } from "@/shared/theme";
 import type { Paper } from "@/types/paper";
+import {
+  loadReadingState,
+  saveFeedReadingOffset,
+} from "@/features/ask/askDatabase";
 import { pageDirectionForGesture, type PageDirection } from "./feedPaging";
 
 type Props = {
@@ -62,6 +66,8 @@ export function PaperCard({
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const bodyOffset = useRef(0);
+  const bodyRef = useRef<ScrollView>(null);
+  const pendingRestore = useRef<number | null>(null);
   const bodyContentHeight = useRef(0);
   const bodyViewportHeight = useRef(0);
   const touchStart = useRef<TouchStart | null>(null);
@@ -88,6 +94,29 @@ export function PaperCard({
   const handleBodyScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     bodyOffset.current = event.nativeEvent.contentOffset.y;
   };
+
+  const persistBodyOffset = useCallback(() => {
+    void saveFeedReadingOffset(paper.arxivId, bodyOffset.current).catch(() => {
+      // Reading memory is best-effort and must never affect paper browsing.
+    });
+  }, [paper.arxivId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadReadingState(paper.arxivId).then(
+      (state) => {
+        if (cancelled || !state) return;
+        bodyOffset.current = state.feedOffset;
+        pendingRestore.current = state.feedOffset;
+        bodyRef.current?.scrollTo({ y: state.feedOffset, animated: false });
+      },
+      () => undefined,
+    );
+    return () => {
+      cancelled = true;
+      persistBodyOffset();
+    };
+  }, [paper.arxivId, persistBodyOffset]);
 
   const snapshotGestureBoundary = () => {
     const maxOffset = Math.max(
@@ -144,6 +173,7 @@ export function PaperCard({
       <GestureDetector gesture={pageGesture}>
         <GestureDetector gesture={nativeScrollGesture}>
           <ScrollView
+            ref={bodyRef}
             style={styles.body}
             contentContainerStyle={styles.bodyContent}
             showsVerticalScrollIndicator={false}
@@ -153,8 +183,17 @@ export function PaperCard({
             onLayout={handleBodyLayout}
             onContentSizeChange={(_width, contentHeight) => {
               bodyContentHeight.current = contentHeight;
+              if (pendingRestore.current !== null) {
+                bodyRef.current?.scrollTo({
+                  y: pendingRestore.current,
+                  animated: false,
+                });
+                pendingRestore.current = null;
+              }
             }}
             onScroll={handleBodyScroll}
+            onMomentumScrollEnd={persistBodyOffset}
+            onScrollEndDrag={persistBodyOffset}
           >
             {date ? <Text style={styles.date}>{date}</Text> : null}
 

@@ -21,6 +21,7 @@ import {
 } from "@/features/settings/SettingsScreen";
 import { useProviderProfiles } from "@/features/settings/useProviderProfiles";
 import { PaperViewer } from "@/features/viewer/PaperViewer";
+import { useEmbeddingProfile } from "@/features/ask/useEmbeddingProfile";
 import { useAppPrefs } from "@/shared/useAppPrefs";
 import { colors } from "@/shared/theme";
 import type { AppSection } from "@/types/navigation";
@@ -45,6 +46,7 @@ export default function App() {
     setCategories,
     setTranslateLang,
     setUiLang,
+    setAskEnabled,
     reset,
   } = useAppPrefs();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -52,6 +54,7 @@ export default function App() {
   const [activeSection, setActiveSection] = useState<AppSection | null>(null);
   const [viewer, setViewer] = useState<ViewerState | null>(null);
   const providerManager = useProviderProfiles();
+  const embeddingManager = useEmbeddingProfile();
   const {
     ready: providerReady,
     recoveryWarning: providerRecoveryWarning,
@@ -204,6 +207,7 @@ export default function App() {
     : "saved";
   const settingsVisible =
     activeSection === "translation" ||
+    activeSection === "ask" ||
     activeSection === "language" ||
     activeSection === "about";
   const settingsSection: SettingsSection = settingsVisible
@@ -221,7 +225,12 @@ export default function App() {
     [openPdf, showError],
   );
 
-  if (!prefsReady || !libraryReady || !providerReady) {
+  if (
+    !prefsReady ||
+    !libraryReady ||
+    !providerReady ||
+    !embeddingManager.ready
+  ) {
     return (
       <SafeAreaProvider>
         <GestureHandlerRootView style={styles.root}>
@@ -306,6 +315,9 @@ export default function App() {
           onReset={reset}
           onBack={openMenu}
           providerManager={providerManager}
+          embeddingManager={embeddingManager}
+          askEnabled={prefs.askEnabled}
+          onAskEnabledChange={setAskEnabled}
         />
         <AppMenu
           visible={menuOpen}
@@ -322,11 +334,20 @@ export default function App() {
           sourceUri={viewer?.sourceUri}
           translateLangPref={prefs.translateLang}
           providerProfile={providerManager.activeProfile}
+          askEnabled={prefs.askEnabled}
+          askProviderProfile={providerManager.activeAskProfile}
+          embeddingProfile={embeddingManager.profile}
+          getEmbeddingApiKey={embeddingManager.getApiKey}
           getProviderApiKey={providerManager.getApiKey}
           onOpenSettings={() => {
             setViewer(null);
             setMenuOpen(true);
             setActiveSection("translation");
+          }}
+          onOpenAskSettings={() => {
+            setViewer(null);
+            setMenuOpen(true);
+            setActiveSection("ask");
           }}
           onClose={() => {
             setViewer(null);

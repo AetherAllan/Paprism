@@ -29,8 +29,15 @@ mock.module("expo-file-system/legacy", () => ({
   writeAsStringAsync: async () => undefined,
 }));
 
-const { loadProviderState, persistProviderState, setProviderApiKey } =
-  await import("./providers");
+const {
+  loadAskProviderId,
+  loadProviderState,
+  persistAskProviderId,
+  persistProviderState,
+  setProviderApiKey,
+} = await import("./providers");
+const { saveEmbeddingProfile } =
+  await import("@/features/ask/embeddingProviders");
 
 describe("provider secret ownership", () => {
   beforeEach(() => {
@@ -56,6 +63,35 @@ describe("provider secret ownership", () => {
 
     expect([...secureValues.values()]).toEqual(["secret-value"]);
     expect([...asyncValues.values()].join(" ")).not.toContain("secret-value");
+  });
+
+  test("keeps the Ask model selection independent from translation", async () => {
+    await persistProviderState({
+      activeProfileId: "translation",
+      profiles: [],
+    });
+    await persistAskProviderId("ask-chat");
+    expect(await loadAskProviderId()).toBe("ask-chat");
+    expect(asyncValues.get("paprism.activeProviderProfile")).toBe(
+      "translation",
+    );
+  });
+
+  test("stores the independent embedding key only in SecureStore", async () => {
+    await saveEmbeddingProfile(
+      {
+        id: "embedding",
+        name: "Embedding",
+        kind: "openrouter",
+        baseUrl: "https://openrouter.ai/api/v1",
+        model: "openai/text-embedding-3-small",
+      },
+      "embedding-secret",
+    );
+    expect([...secureValues.values()]).toEqual(["embedding-secret"]);
+    expect([...asyncValues.values()].join(" ")).not.toContain(
+      "embedding-secret",
+    );
   });
 
   test("recreates the fixed Google profile instead of trusting stored data", async () => {

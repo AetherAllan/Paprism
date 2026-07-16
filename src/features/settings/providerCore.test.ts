@@ -3,6 +3,7 @@ import {
   normalizeModels,
   OPENROUTER_BASE_URL,
   searchModels,
+  sortModelsFreeFirst,
   validateProfile,
   type ProviderProfile,
 } from "./providerCore";
@@ -61,5 +62,16 @@ describe("provider configuration", () => {
     expect(searchModels(models, "google")).toHaveLength(1);
     expect(searchModels(models, "flash")).toHaveLength(1);
     expect(searchModels(models, "missing")).toHaveLength(0);
+  });
+
+  test("keeps provider order within the free and paid groups", () => {
+    expect(
+      sortModelsFreeFirst([
+        { id: "paid-a", name: "Paid A", free: false },
+        { id: "free-a", name: "Free A", free: true },
+        { id: "paid-b", name: "Paid B", free: false },
+        { id: "free-b", name: "Free B", free: true },
+      ]).map((model) => model.id),
+    ).toEqual(["free-a", "free-b", "paid-a", "paid-b"]);
   });
 });

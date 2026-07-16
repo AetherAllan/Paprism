@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   deleteProviderApiKey,
   getProviderApiKey,
+  loadAskProviderId,
   loadProviderState,
   persistProviderState,
+  persistAskProviderId,
   setProviderApiKey,
 } from "./providers";
 import {
@@ -18,17 +20,38 @@ export function useProviderProfiles() {
     null,
   );
   const [ready, setReady] = useState(false);
+  const [activeAskProfileId, setActiveAskProfileIdState] = useState<
+    string | null
+  >(null);
   const [recoveryWarning, setRecoveryWarning] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void loadProviderState().then((state) => {
+    void (async () => {
+      const state = await loadProviderState();
+      let askProfileId: string | null = null;
+      let askRecovered = false;
+      try {
+        askProfileId = await loadAskProviderId();
+      } catch {
+        // Ask is optional. A corrupt or unavailable preference must not revive
+        // the permanent-loading failure this hook is designed to prevent.
+        askRecovered = true;
+      }
       if (cancelled) return;
       setProfiles(state.profiles);
       setActiveProfileIdState(state.activeProfileId);
-      setRecoveryWarning(state.recovered);
+      setActiveAskProfileIdState(
+        state.profiles.some(
+          (profile) =>
+            profile.id === askProfileId && profile.id !== GOOGLE_PROFILE_ID,
+        )
+          ? askProfileId
+          : null,
+      );
+      setRecoveryWarning(state.recovered || askRecovered);
       setReady(true);
-    });
+    })();
     return () => {
       cancelled = true;
     };
@@ -70,8 +93,12 @@ export function useProviderProfiles() {
       });
       setProfiles(nextProfiles);
       setActiveProfileIdState(nextActive);
+      if (activeAskProfileId === profileId) {
+        await persistAskProviderId(null);
+        setActiveAskProfileIdState(null);
+      }
     },
-    [activeProfileId, profiles],
+    [activeAskProfileId, activeProfileId, profiles],
   );
 
   const setActiveProfileId = useCallback(
@@ -82,6 +109,12 @@ export function useProviderProfiles() {
     [profiles],
   );
   const clearRecoveryWarning = useCallback(() => setRecoveryWarning(false), []);
+  const setActiveAskProfileId = useCallback(async (profileId: string) => {
+    if (profileId === GOOGLE_PROFILE_ID)
+      throw new Error("Google Translate cannot answer Ask questions");
+    await persistAskProviderId(profileId);
+    setActiveAskProfileIdState(profileId);
+  }, []);
 
   return {
     ready,
@@ -89,13 +122,20 @@ export function useProviderProfiles() {
     clearRecoveryWarning,
     profiles,
     activeProfileId,
+    activeAskProfileId,
     activeProfile: useMemo(
       () => profiles.find((profile) => profile.id === activeProfileId) ?? null,
       [activeProfileId, profiles],
     ),
+    activeAskProfile: useMemo(
+      () =>
+        profiles.find((profile) => profile.id === activeAskProfileId) ?? null,
+      [activeAskProfileId, profiles],
+    ),
     saveProfile,
     deleteProfile,
     setActiveProfileId,
+    setActiveAskProfileId,
     getApiKey: getProviderApiKey,
   };
 }

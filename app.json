@@ -29,6 +29,7 @@
         }
       ],
       "expo-secure-store",
+      "expo-sqlite",
       [
         "react-native-enriched-markdown",
         {

@@ -43,6 +43,7 @@
     "title": "菜单",
     "search": "搜索",
     "translation": "翻译",
+    "ask": "Ask",
     "language": "语言"
   },
   "search": {
@@ -162,6 +163,40 @@
     "pending": "队列 {{count}}",
     "retryFailed": "点击重试",
     "translationOnly": "仅译文"
+  },
+  "ask": {
+    "enabled": "启用 Paprism Ask",
+    "enabledHint": "在正文顶部和原生选词菜单显示 Ask。关闭不会删除历史数据。",
+    "chatProvider": "Ask 对话模型",
+    "chatProviderHint": "可与翻译使用不同配置。论文片段和问题会发送到所选服务。",
+    "embeddingProvider": "语义检索模型（可选）",
+    "embeddingHint": "首次提问时才生成当前论文向量。未配置或失败时仍可使用普通上下文提问。",
+    "embeddingModel": "Embedding 模型名称",
+    "disableEmbedding": "关闭并删除 Embedding 配置",
+    "saved": "Ask 配置已保存",
+    "privacy": "聊天、引用、向量和阅读位置保存在本机应用沙盒。API Key 只存 SecureStore。OpenRouter 网页搜索可能产生额外费用。",
+    "clearAll": "清除全部 Ask 聊天和论文索引",
+    "clearAllTitle": "清除全部 Ask 数据？",
+    "clearAllBody": "将删除本机聊天、引用和论文向量，不影响收藏、历史和阅读位置。",
+    "clearPaperTitle": "清除这篇论文的对话？",
+    "clearPaperBody": "将删除这篇论文的聊天和语义索引。",
+    "providerMissing": "尚未配置对话模型",
+    "setupTitle": "Ask 需要对话模型",
+    "setupBody": "请先在 Ask 设置中选择或创建 Chat Provider。Google Translate 不能用于 Ask。",
+    "selectedText": "当前引用",
+    "empty": "针对当前论文提问。长按正文选择文字后使用 Ask，回答会自动带上选区和论文上下文。",
+    "interrupted": "回答已中断，可重新发送问题。",
+    "noSemantic": "未使用语义检索",
+    "webSearch": "网页搜索",
+    "webSearchCost": "本条消息可选 OpenRouter 网页搜索，可能产生额外费用。",
+    "webSearchUnavailable": "当前 Provider 不支持 Paprism 网页搜索。",
+    "placeholder": "问这篇论文…",
+    "activity": {
+      "retrieving": "检索论文",
+      "searching": "搜索网页",
+      "connecting": "等待模型响应",
+      "answering": "生成回答"
+    }
   },
   "group": {
     "Browse": "浏览",

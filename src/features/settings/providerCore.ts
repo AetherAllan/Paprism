@@ -15,6 +15,10 @@ export type ModelOption = {
   free: boolean;
 };
 
+export function sortModelsFreeFirst(models: ModelOption[]): ModelOption[] {
+  return [...models].sort((a, b) => Number(b.free) - Number(a.free));
+}
+
 export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 export const GOOGLE_TRANSLATE_BASE_URL = "https://translate.googleapis.com";
 export const GOOGLE_PROFILE_ID = "google-web";
@@ -95,7 +99,7 @@ export function normalizeModels(
       free: kind === "openrouter" && (id.endsWith(":free") || zeroPrice),
     });
   }
-  return result.sort((a, b) => Number(b.free) - Number(a.free));
+  return sortModelsFreeFirst(result);
 }
 
 export function searchModels(

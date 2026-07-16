@@ -12,6 +12,8 @@ import { LanguagePickerField } from "./LanguagePickerField";
 import { LanguagePickerSheet } from "./LanguagePickerSheet";
 import type { LanguageOption } from "./languagePicker";
 import { ProviderSettings } from "./ProviderSettings";
+import { AskSettings } from "@/features/ask/AskSettings";
+import type { useEmbeddingProfile } from "@/features/ask/useEmbeddingProfile";
 import type { useProviderProfiles } from "./useProviderProfiles";
 
 const TRANSLATE_OPTIONS: {
@@ -58,11 +60,14 @@ type Props = {
   onReset: () => void;
   onBack: () => void;
   providerManager: ReturnType<typeof useProviderProfiles>;
+  embeddingManager: ReturnType<typeof useEmbeddingProfile>;
+  askEnabled: boolean;
+  onAskEnabledChange: (enabled: boolean) => void;
 };
 
 export type SettingsSection = Extract<
   AppSection,
-  "translation" | "language" | "about"
+  "translation" | "ask" | "language" | "about"
 >;
 
 export function SettingsScreen({
@@ -75,15 +80,20 @@ export function SettingsScreen({
   onReset,
   onBack,
   providerManager,
+  embeddingManager,
+  askEnabled,
+  onAskEnabledChange,
 }: Props) {
   const { t } = useTranslation();
   const [picker, setPicker] = useState<"ui" | "translation" | null>(null);
   const title = t(
     section === "translation"
       ? "menu.translation"
-      : section === "language"
-        ? "menu.language"
-        : "settings.about",
+      : section === "ask"
+        ? "menu.ask"
+        : section === "language"
+          ? "menu.language"
+          : "settings.about",
   );
   const uiOptions = useMemo<LanguageOption[]>(() => {
     const resolved = deviceUiLang();
@@ -149,6 +159,15 @@ export function SettingsScreen({
               />
               <ProviderSettings manager={providerManager} />
             </>
+          ) : null}
+
+          {section === "ask" ? (
+            <AskSettings
+              enabled={askEnabled}
+              onEnabledChange={onAskEnabledChange}
+              providerManager={providerManager}
+              embeddingManager={embeddingManager}
+            />
           ) : null}
 
           {section === "about" ? (

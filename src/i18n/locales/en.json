@@ -43,6 +43,7 @@
     "title": "Menu",
     "search": "Search",
     "translation": "Translation",
+    "ask": "Ask",
     "language": "Language"
   },
   "search": {
@@ -162,5 +163,39 @@
     "pending": "{{count}} queued",
     "retryFailed": "Tap to retry",
     "translationOnly": "Translation"
+  },
+  "ask": {
+    "enabled": "Enable Paprism Ask",
+    "enabledHint": "Show Ask in the reader toolbar and native selection menu. Disabling it keeps existing data.",
+    "chatProvider": "Ask chat model",
+    "chatProviderHint": "May differ from translation. Questions and paper passages are sent to this service.",
+    "embeddingProvider": "Semantic retrieval model (optional)",
+    "embeddingHint": "Vectors are created lazily for the current paper. Ask still works with normal context if this is missing or fails.",
+    "embeddingModel": "Embedding model name",
+    "disableEmbedding": "Remove embedding configuration",
+    "saved": "Ask configuration saved",
+    "privacy": "Chats, citations, vectors, and reading positions stay in the app sandbox. API keys stay in SecureStore. OpenRouter web search may cost extra.",
+    "clearAll": "Clear all Ask chats and paper indexes",
+    "clearAllTitle": "Clear all Ask data?",
+    "clearAllBody": "This deletes local chats, citations, and paper vectors. Saved papers, history, and reading positions are kept.",
+    "clearPaperTitle": "Clear this paper conversation?",
+    "clearPaperBody": "This deletes the chat and semantic index for this paper.",
+    "providerMissing": "No chat model configured",
+    "setupTitle": "Ask needs a chat model",
+    "setupBody": "Choose or create a Chat Provider in Ask settings. Google Translate cannot answer Ask questions.",
+    "selectedText": "Current quote",
+    "empty": "Ask about this paper. Select text in the reader and choose Ask to include the exact passage.",
+    "interrupted": "Answer interrupted. Send the question again to retry.",
+    "noSemantic": "semantic retrieval unavailable",
+    "webSearch": "Web search",
+    "webSearchCost": "OpenRouter web search is optional per message and may cost extra.",
+    "webSearchUnavailable": "This provider does not support Paprism web search.",
+    "placeholder": "Ask about this paper…",
+    "activity": {
+      "retrieving": "Retrieving paper",
+      "searching": "Searching the web",
+      "connecting": "Waiting for model",
+      "answering": "Writing answer"
+    }
   }
 }

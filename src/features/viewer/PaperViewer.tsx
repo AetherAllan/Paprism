@@ -14,10 +14,13 @@ import {
   View,
   type ListRenderItemInfo,
   type ViewToken,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import Languages from "lucide-react-native/icons/languages";
 import ListTree from "lucide-react-native/icons/list-tree";
+import MessageCircleQuestion from "lucide-react-native/icons/message-circle-question-mark";
 import X from "lucide-react-native/icons/x";
 import {
   EnrichedMarkdownText,
@@ -25,14 +28,23 @@ import {
 } from "react-native-enriched-markdown";
 import { SvgUri } from "react-native-svg";
 import { StatusBar } from "expo-status-bar";
+import { BlurTargetView } from "expo-blur";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { ProviderProfile } from "@/features/settings/providerCore";
 import { resolveTranslateLang, type TranslateLangPref } from "@/lib/storage";
 import { colors, radii } from "@/shared/theme";
 import type { Paper } from "@/types/paper";
+import { AskSheet } from "@/features/ask/AskSheet";
+import { useAskConversation } from "@/features/ask/useAskConversation";
+import type { AskSelection, EmbeddingProfile } from "@/features/ask/askTypes";
+import {
+  loadReadingState,
+  saveReaderPosition,
+} from "@/features/ask/askDatabase";
 import { loadPaperDocument } from "./paperSource";
 import type { PaperAsset, PaperBlock, PaperDocument } from "./paperDocument";
+import { resolveInitialReaderPosition } from "./readerPosition";
 import {
   PAPER_TITLE_TRANSLATION_ID,
   useDocumentTranslation,
@@ -43,8 +55,13 @@ type Props = {
   translateLangPref: TranslateLangPref;
   sourceUri?: string;
   providerProfile: ProviderProfile | null;
+  askEnabled: boolean;
+  askProviderProfile: ProviderProfile | null;
+  embeddingProfile: EmbeddingProfile | null;
+  getEmbeddingApiKey: () => Promise<string | null>;
   getProviderApiKey: (profileId: string) => Promise<string | null>;
   onOpenSettings: () => void;
+  onOpenAskSettings: () => void;
   onClose: () => void;
 };
 
@@ -204,17 +221,24 @@ export function PaperViewer({
   translateLangPref,
   sourceUri,
   providerProfile,
+  askEnabled,
+  askProviderProfile,
+  embeddingProfile,
+  getEmbeddingApiKey,
   getProviderApiKey,
   onOpenSettings,
+  onOpenAskSettings,
   onClose,
 }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const nativeReaderAvailable = hasNativeMarkdownRenderer();
   const list = useRef<FlatList<PaperBlock>>(null);
+  const blurTarget = useRef<View>(null);
   const loadController = useRef<AbortController | null>(null);
   const documentRef = useRef<PaperDocument | null>(null);
   const visibleIds = useRef<string[]>([]);
+  const firstVisibleId = useRef<string | null>(null);
   const enqueueRef = useRef<(ids: string[]) => Promise<void>>(
     async () => undefined,
   );
@@ -224,6 +248,18 @@ export function PaperViewer({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("source");
   const [tocOpen, setTocOpen] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
+  const [visibleBlockId, setVisibleBlockId] = useState<string | null>(null);
+  const readerPositionReady = useRef(false);
+  const expectedInitialOffset = useRef(0);
+  const renderStartIndexRef = useRef(0);
+  const pendingNavigationIndex = useRef<number | null>(null);
+  const [renderStartIndex, setRenderStartIndex] = useState(0);
+  const [showPaperHeader, setShowPaperHeader] = useState(true);
+  const [initialContentOffset, setInitialContentOffset] = useState<
+    number | null
+  >(null);
+  const readerTopPadding = Math.max(insets.top, 8) + 64;
 
   const targetLang = useMemo(
     () => resolveTranslateLang(translateLangPref),
@@ -236,6 +272,14 @@ export function PaperViewer({
     providerProfile,
     targetLang,
     getProviderApiKey,
+  });
+  const ask = useAskConversation({
+    paper,
+    document,
+    chatProfile: askProviderProfile,
+    getChatApiKey: getProviderApiKey,
+    embeddingProfile,
+    getEmbeddingApiKey,
   });
   const enqueueTranslation = translation.enqueue;
   enqueueRef.current = translation.enqueue;
@@ -253,25 +297,63 @@ export function PaperViewer({
     });
     return result;
   }, [document]);
+  const renderedBlocks = useMemo(
+    () => document?.blocks.slice(renderStartIndex) ?? [],
+    [document, renderStartIndex],
+  );
 
   const load = useCallback(() => {
     // Retry, close, and paper changes all share one owner. A late response from
     // an older paper must never replace the currently requested document.
     loadController.current?.abort();
     loadController.current = null;
-    if (!paper || !nativeReaderAvailable) return;
+    readerPositionReady.current = false;
+    expectedInitialOffset.current = 0;
+    renderStartIndexRef.current = 0;
+    pendingNavigationIndex.current = null;
+    firstVisibleId.current = null;
+    setRenderStartIndex(0);
+    setShowPaperHeader(true);
+    setInitialContentOffset(null);
+    setVisibleBlockId(null);
+    if (!paper || !nativeReaderAvailable) {
+      setDocument(null);
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
     loadController.current = controller;
     setLoading(true);
     setLoadError(null);
     setMode("source");
     setDocument(null);
-    void loadPaperDocument(paper, sourceUri, controller.signal)
-      .then((nextDocument) => {
+    void Promise.all([
+      loadPaperDocument(paper, sourceUri, controller.signal),
+      loadReadingState(paper.arxivId).catch(() => null),
+    ])
+      .then(([nextDocument, readingState]) => {
         if (
           loadController.current === controller &&
           !controller.signal.aborted
         ) {
+          const initial = resolveInitialReaderPosition(
+            nextDocument,
+            readingState,
+          );
+          const hasSavedBlock = initial.blockId !== null;
+          const contentOffset = hasSavedBlock ? readerTopPadding : 0;
+
+          // The first FlatList mount starts at the saved semantic block. This
+          // avoids rendering Summary and then racing a scroll command against
+          // dynamic Markdown measurement.
+          renderStartIndexRef.current = initial.blockIndex;
+          setRenderStartIndex(initial.blockIndex);
+          setShowPaperHeader(!hasSavedBlock);
+          setInitialContentOffset(hasSavedBlock ? contentOffset : null);
+          expectedInitialOffset.current = contentOffset;
+          firstVisibleId.current = initial.blockId;
+          setVisibleBlockId(initial.blockId);
+          readerPositionReady.current = !hasSavedBlock;
           setDocument(nextDocument);
         }
       })
@@ -292,7 +374,7 @@ export function PaperViewer({
       controller.abort();
       if (loadController.current === controller) loadController.current = null;
     };
-  }, [nativeReaderAvailable, paper, sourceUri, t]);
+  }, [nativeReaderAvailable, paper, readerTopPadding, sourceUri, t]);
 
   useEffect(load, [load]);
 
@@ -309,11 +391,23 @@ export function PaperViewer({
     ({ viewableItems }: { viewableItems: ViewToken<PaperBlock>[] }) => {
       const currentDocument = documentRef.current;
       if (!currentDocument) return;
-      const indexes = viewableItems
-        .map((item) => item.index)
-        .filter((index): index is number => index !== null);
+      const orderedItems = viewableItems
+        .filter(
+          (item): item is ViewToken<PaperBlock> & { index: number } =>
+            item.index !== null,
+        )
+        .sort((a, b) => a.index - b.index);
+      if (orderedItems.length === 0) return;
+      const indexes = orderedItems
+        .map((item) =>
+          currentDocument.blocks.findIndex(
+            (block) => block.id === item.item.id,
+          ),
+        )
+        .filter((index) => index >= 0);
       if (indexes.length === 0) return;
       const first = Math.max(0, Math.min(...indexes) - 1);
+      const visibleFirst = Math.min(...indexes);
       const last = Math.min(
         currentDocument.blocks.length - 1,
         Math.max(...indexes, 0) + 3,
@@ -322,9 +416,85 @@ export function PaperViewer({
         .slice(first, last + 1)
         .map((block) => block.id);
       visibleIds.current = ids;
+      const blockId = currentDocument.blocks[visibleFirst]?.id ?? null;
+      firstVisibleId.current = blockId;
+      setVisibleBlockId(blockId);
       void enqueueRef.current(ids);
     },
   ).current;
+
+  const persistReaderPosition = useCallback(() => {
+    if (!paper || !document || !readerPositionReady.current) return;
+    const blockId = firstVisibleId.current;
+    if (!blockId) return;
+
+    // Dynamic native Markdown does not expose stable per-cell geometry. The
+    // semantic block is the durable position; guessed pixels recreate the
+    // same restore race this path is meant to remove.
+    void saveReaderPosition(
+      paper.arxivId,
+      blockId,
+    ).catch(() => {
+      // Reading memory is optional; leaving the reader must always succeed.
+    });
+  }, [document, paper]);
+
+  const revealWholeDocument = useCallback(() => {
+    if (renderStartIndexRef.current === 0 && showPaperHeader) return;
+    // Native maintainVisibleContentPosition keeps the current paragraph still
+    // while the omitted prefix becomes available for upward scrolling.
+    renderStartIndexRef.current = 0;
+    setInitialContentOffset(null);
+    setRenderStartIndex(0);
+    setShowPaperHeader(true);
+  }, [showPaperHeader]);
+
+  const scrollToDocumentIndex = useCallback(
+    (index: number) => {
+      const startIndex = renderStartIndexRef.current;
+      if (index >= startIndex) {
+        list.current?.scrollToIndex({
+          index: index - startIndex,
+          animated: true,
+          viewPosition: 0.08,
+        });
+        return;
+      }
+      pendingNavigationIndex.current = index;
+      revealWholeDocument();
+    },
+    [revealWholeDocument],
+  );
+
+  useEffect(() => {
+    const index = pendingNavigationIndex.current;
+    if (index === null || renderStartIndex !== 0 || !showPaperHeader) return;
+    pendingNavigationIndex.current = null;
+    const frame = requestAnimationFrame(() => {
+      list.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.08,
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [renderStartIndex, showPaperHeader]);
+
+  const closeViewer = useCallback(() => {
+    persistReaderPosition();
+    setAskOpen(false);
+    onClose();
+  }, [onClose, persistReaderPosition]);
+
+  const openAsk = useCallback(
+    (selection?: AskSelection) => {
+      // The toolbar entry intentionally asks about the current viewport. Only
+      // the native selection action should retain an explicit quoted passage.
+      ask.setSelection(selection ?? null);
+      setAskOpen(true);
+    },
+    [ask],
+  );
 
   const openLink = useCallback(
     ({ url }: { url: string }) => {
@@ -333,11 +503,7 @@ export function PaperViewer({
         const anchor = decodeURIComponent(url.slice(prefix.length));
         const index = anchorIndex.get(anchor);
         if (index !== undefined) {
-          list.current?.scrollToIndex({
-            index,
-            animated: true,
-            viewPosition: 0.08,
-          });
+          scrollToDocumentIndex(index);
         }
         return;
       }
@@ -345,7 +511,7 @@ export function PaperViewer({
         void Linking.openURL(url).catch(() => undefined);
       }
     },
-    [anchorIndex],
+    [anchorIndex, scrollToDocumentIndex],
   );
 
   const changeMode = useCallback(async () => {
@@ -380,6 +546,7 @@ export function PaperViewer({
     }
   }, [getProviderApiKey, mode, onOpenSettings, providerProfile, t]);
 
+  const askAvailable = askEnabled && Platform.OS === "android";
   const renderBlock = useCallback(
     ({ item }: ListRenderItemInfo<PaperBlock>) => (
       <ReaderBlock
@@ -387,9 +554,19 @@ export function PaperViewer({
         mode={mode}
         translation={translation.translations[item.id]}
         onLinkPress={openLink}
+        askEnabled={askAvailable}
+        arxivId={paper?.arxivId ?? ""}
+        onAsk={openAsk}
       />
     ),
-    [mode, openLink, translation.translations],
+    [
+      askAvailable,
+      mode,
+      openAsk,
+      openLink,
+      paper?.arxivId,
+      translation.translations,
+    ],
   );
 
   const modeLabel =
@@ -404,152 +581,201 @@ export function PaperViewer({
       visible={paper != null}
       animationType="slide"
       presentationStyle="fullScreen"
-      onRequestClose={onClose}
+      onRequestClose={closeViewer}
     >
       <View style={styles.root}>
         <StatusBar style="light" />
-        {nativeReaderAvailable && document && paper ? (
-          <FlatList
-            ref={list}
-            data={document.blocks}
-            keyExtractor={(block) => block.id}
-            renderItem={renderBlock}
-            contentContainerStyle={{
-              paddingTop: Math.max(insets.top, 8) + 64,
-              paddingHorizontal: 20,
-              paddingBottom: Math.max(insets.bottom, 16) + 40,
-            }}
-            ListHeaderComponent={
-              <PaperHeader
-                paper={paper}
-                mode={mode}
-                translation={
-                  translation.translations[PAPER_TITLE_TRANSLATION_ID]
+        <BlurTargetView ref={blurTarget} style={styles.root}>
+          {nativeReaderAvailable && document && paper ? (
+            <FlatList
+              ref={list}
+              data={renderedBlocks}
+              keyExtractor={(block) => block.id}
+              renderItem={renderBlock}
+              contentOffset={
+                initialContentOffset === null
+                  ? undefined
+                  : { x: 0, y: initialContentOffset }
+              }
+              maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+              contentContainerStyle={{
+                paddingTop: readerTopPadding,
+                paddingHorizontal: 20,
+                paddingBottom: Math.max(insets.bottom, 16) + 40,
+              }}
+              ListHeaderComponent={
+                showPaperHeader ? (
+                  <PaperHeader
+                    paper={paper}
+                    mode={mode}
+                    translation={
+                      translation.translations[PAPER_TITLE_TRANSLATION_ID]
+                    }
+                  />
+                ) : null
+              }
+              onViewableItemsChanged={onViewableItemsChanged}
+              viewabilityConfig={viewabilityConfig}
+              initialNumToRender={8}
+              maxToRenderPerBatch={6}
+              updateCellsBatchingPeriod={40}
+              windowSize={7}
+              onScrollToIndexFailed={({ index, averageItemLength }) => {
+                list.current?.scrollToOffset({
+                  offset: Math.max(0, index * averageItemLength),
+                  animated: true,
+                });
+              }}
+              onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
+                const offset = event.nativeEvent.contentOffset.y;
+                if (
+                  !readerPositionReady.current &&
+                  Math.abs(offset - expectedInitialOffset.current) > 2
+                ) {
+                  return;
                 }
-              />
-            }
-            onViewableItemsChanged={onViewableItemsChanged}
-            viewabilityConfig={viewabilityConfig}
-            initialNumToRender={8}
-            maxToRenderPerBatch={6}
-            updateCellsBatchingPeriod={40}
-            windowSize={7}
-            onScrollToIndexFailed={({ index, averageItemLength }) => {
-              list.current?.scrollToOffset({
-                offset: Math.max(0, index * averageItemLength),
-                animated: true,
-              });
+                readerPositionReady.current = true;
+              }}
+              onScrollBeginDrag={(event) => {
+                readerPositionReady.current = true;
+                revealWholeDocument();
+              }}
+              onMomentumScrollEnd={persistReaderPosition}
+              onScrollEndDrag={persistReaderPosition}
+              scrollEventThrottle={100}
+            />
+          ) : null}
+
+          {!nativeReaderAvailable ? (
+            <MissingNativeReader onClose={closeViewer} />
+          ) : null}
+
+          {nativeReaderAvailable && loading ? (
+            <View style={styles.center}>
+              <ActivityIndicator color={accent} size="large" />
+              <Text style={styles.loadingText}>{t("reader.loading")}</Text>
+            </View>
+          ) : null}
+
+          {nativeReaderAvailable && !loading && loadError && paper ? (
+            <ReaderError
+              message={loadError}
+              onRetry={load}
+              onOpenPdf={() =>
+                void Linking.openURL(paper.pdfUrl).catch(() => undefined)
+              }
+              onOpenArxiv={() =>
+                void Linking.openURL(
+                  `https://arxiv.org/abs/${paper.arxivId}`,
+                ).catch(() => undefined)
+              }
+            />
+          ) : null}
+
+          <View style={[styles.bar, { paddingTop: Math.max(insets.top, 8) }]}>
+            <Pressable
+              accessibilityLabel={t("common.back")}
+              onPress={closeViewer}
+              hitSlop={10}
+              style={styles.iconButton}
+            >
+              <ArrowLeft color={colors.text} size={21} strokeWidth={1.9} />
+            </Pressable>
+            <View style={styles.statusBox}>
+              <Text style={styles.barTitle} numberOfLines={1}>
+                {paper ? `arXiv:${paper.arxivId}` : "Paprism"}
+              </Text>
+              {mode !== "source" ? (
+                <Text style={styles.statusText} numberOfLines={1}>
+                  {translation.progress.completed}/{translation.total || "—"}
+                  {translation.progress.pending
+                    ? ` · ${t("translation.pending", { count: translation.progress.pending })}`
+                    : ""}
+                </Text>
+              ) : (
+                <Text style={styles.statusText} numberOfLines={1}>
+                  {providerProfile?.name ?? t("provider.noModel")}
+                </Text>
+              )}
+              {translation.error ? (
+                <Pressable onPress={translation.retryFailed} hitSlop={8}>
+                  <Text style={styles.errorText} numberOfLines={1}>
+                    {translation.error} · {t("translation.retryFailed")}
+                  </Text>
+                </Pressable>
+              ) : translation.progress.pending > 0 ? (
+                <Pressable onPress={translation.cancel} hitSlop={8}>
+                  <Text style={styles.cancelText}>{t("common.cancel")}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+            <View style={styles.actions}>
+              {askAvailable && nativeReaderAvailable ? (
+                <Pressable
+                  accessibilityLabel="Ask"
+                  onPress={() => openAsk()}
+                  hitSlop={8}
+                  style={styles.iconButton}
+                >
+                  <MessageCircleQuestion
+                    color={accent}
+                    size={20}
+                    strokeWidth={1.8}
+                  />
+                </Pressable>
+              ) : null}
+              {headings.length > 0 ? (
+                <Pressable
+                  accessibilityLabel={t("reader.contents")}
+                  onPress={() => setTocOpen(true)}
+                  hitSlop={8}
+                  style={styles.iconButton}
+                >
+                  <ListTree
+                    color={colors.textSecondary}
+                    size={20}
+                    strokeWidth={1.8}
+                  />
+                </Pressable>
+              ) : null}
+              {nativeReaderAvailable ? (
+                <Pressable
+                  accessibilityLabel={modeLabel}
+                  onPress={() => void changeMode()}
+                  hitSlop={10}
+                  style={styles.modeButton}
+                >
+                  <Languages color={accent} size={16} strokeWidth={1.9} />
+                  <Text style={styles.chipText}>{modeLabel}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+
+          <ContentsSheet
+            visible={tocOpen}
+            headings={headings}
+            onClose={() => setTocOpen(false)}
+            onSelect={(id) => {
+              const index = anchorIndex.get(id);
+              setTocOpen(false);
+              if (index !== undefined) {
+                scrollToDocumentIndex(index);
+              }
             }}
           />
-        ) : null}
-
-        {!nativeReaderAvailable ? (
-          <MissingNativeReader onClose={onClose} />
-        ) : null}
-
-        {nativeReaderAvailable && loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={accent} size="large" />
-            <Text style={styles.loadingText}>{t("reader.loading")}</Text>
-          </View>
-        ) : null}
-
-        {nativeReaderAvailable && !loading && loadError && paper ? (
-          <ReaderError
-            message={loadError}
-            onRetry={load}
-            onOpenPdf={() =>
-              void Linking.openURL(paper.pdfUrl).catch(() => undefined)
-            }
-            onOpenArxiv={() =>
-              void Linking.openURL(
-                `https://arxiv.org/abs/${paper.arxivId}`,
-              ).catch(() => undefined)
-            }
-          />
-        ) : null}
-
-        <View style={[styles.bar, { paddingTop: Math.max(insets.top, 8) }]}>
-          <Pressable
-            accessibilityLabel={t("common.back")}
-            onPress={onClose}
-            hitSlop={10}
-            style={styles.iconButton}
-          >
-            <ArrowLeft color={colors.text} size={21} strokeWidth={1.9} />
-          </Pressable>
-          <View style={styles.statusBox}>
-            <Text style={styles.barTitle} numberOfLines={1}>
-              {paper ? `arXiv:${paper.arxivId}` : "Paprism"}
-            </Text>
-            {mode !== "source" ? (
-              <Text style={styles.statusText} numberOfLines={1}>
-                {translation.progress.completed}/{translation.total || "—"}
-                {translation.progress.pending
-                  ? ` · ${t("translation.pending", { count: translation.progress.pending })}`
-                  : ""}
-              </Text>
-            ) : (
-              <Text style={styles.statusText} numberOfLines={1}>
-                {providerProfile?.name ?? t("provider.noModel")}
-              </Text>
-            )}
-            {translation.error ? (
-              <Pressable onPress={translation.retryFailed} hitSlop={8}>
-                <Text style={styles.errorText} numberOfLines={1}>
-                  {translation.error} · {t("translation.retryFailed")}
-                </Text>
-              </Pressable>
-            ) : translation.progress.pending > 0 ? (
-              <Pressable onPress={translation.cancel} hitSlop={8}>
-                <Text style={styles.cancelText}>{t("common.cancel")}</Text>
-              </Pressable>
-            ) : null}
-          </View>
-          <View style={styles.actions}>
-            {headings.length > 0 ? (
-              <Pressable
-                accessibilityLabel={t("reader.contents")}
-                onPress={() => setTocOpen(true)}
-                hitSlop={8}
-                style={styles.iconButton}
-              >
-                <ListTree
-                  color={colors.textSecondary}
-                  size={20}
-                  strokeWidth={1.8}
-                />
-              </Pressable>
-            ) : null}
-            {nativeReaderAvailable ? (
-              <Pressable
-                accessibilityLabel={modeLabel}
-                onPress={() => void changeMode()}
-                hitSlop={10}
-                style={styles.modeButton}
-              >
-                <Languages color={accent} size={16} strokeWidth={1.9} />
-                <Text style={styles.chipText}>{modeLabel}</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-
-        <ContentsSheet
-          visible={tocOpen}
-          headings={headings}
-          onClose={() => setTocOpen(false)}
-          onSelect={(id) => {
-            const index = anchorIndex.get(id);
-            setTocOpen(false);
-            if (index !== undefined) {
-              list.current?.scrollToIndex({
-                index,
-                animated: true,
-                viewPosition: 0.08,
-              });
-            }
+        </BlurTargetView>
+        <AskSheet
+          visible={askOpen}
+          conversation={ask}
+          chatProfile={askProviderProfile}
+          visibleBlockId={visibleBlockId}
+          onClose={() => setAskOpen(false)}
+          onOpenSettings={() => {
+            setAskOpen(false);
+            onOpenAskSettings();
           }}
+          blurTarget={blurTarget}
         />
       </View>
     </Modal>
@@ -588,11 +814,17 @@ function ReaderBlock({
   mode,
   translation,
   onLinkPress,
+  askEnabled,
+  arxivId,
+  onAsk,
 }: {
   block: PaperBlock;
   mode: Mode;
   translation?: string;
   onLinkPress: (event: { url: string }) => void;
+  askEnabled: boolean;
+  arxivId: string;
+  onAsk: (selection: AskSelection) => void;
 }) {
   const showSource =
     mode !== "translation" || !block.translationSource || !translation;
@@ -603,7 +835,21 @@ function ReaderBlock({
         <PaperImage key={`${asset.uri}-${index}`} asset={asset} />
       ))}
       {showSource && block.markdown ? (
-        <PaperMarkdown markdown={block.markdown} onLinkPress={onLinkPress} />
+        <PaperMarkdown
+          markdown={block.markdown}
+          onLinkPress={onLinkPress}
+          askEnabled={askEnabled}
+          onAsk={(text) =>
+            onAsk({
+              arxivId,
+              blockId: block.id,
+              text,
+              sourceText: block.plainText,
+              sectionTitle: block.sectionTitle,
+              language: "source",
+            })
+          }
+        />
       ) : null}
       {showTranslation ? (
         <View
@@ -614,6 +860,17 @@ function ReaderBlock({
             onLinkPress={onLinkPress}
             translated
             compactHeading={mode === "dual"}
+            askEnabled={askEnabled}
+            onAsk={(text) =>
+              onAsk({
+                arxivId,
+                blockId: block.id,
+                text,
+                sourceText: block.plainText,
+                sectionTitle: block.sectionTitle,
+                language: "translation",
+              })
+            }
           />
         </View>
       ) : null}
@@ -626,11 +883,15 @@ function PaperMarkdown({
   translated = false,
   compactHeading = false,
   onLinkPress,
+  askEnabled = false,
+  onAsk,
 }: {
   markdown: string;
   translated?: boolean;
   compactHeading?: boolean;
   onLinkPress: (event: { url: string }) => void;
+  askEnabled?: boolean;
+  onAsk?: (text: string) => void;
 }) {
   return (
     <EnrichedMarkdownText
@@ -650,6 +911,17 @@ function PaperMarkdown({
       maxFontSizeMultiplier={1.8}
       selectionColor="rgba(139,92,246,0.28)"
       selectionHandleColor="#7c3aed"
+      contextMenuItems={
+        askEnabled && onAsk
+          ? [
+              {
+                text: "Ask",
+                icon: "auto_awesome",
+                onPress: ({ text }) => onAsk(text),
+              },
+            ]
+          : undefined
+      }
     />
   );
 }

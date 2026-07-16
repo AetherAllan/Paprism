@@ -5,6 +5,7 @@ import i18n from "@/i18n";
 import type { Paper } from "@/types/paper";
 import { isOfflineFeedError } from "./feedError";
 import { shouldPrefetch } from "./feedPaging";
+import { loadFeedPaperId, saveFeedPaperId } from "./feedMemory";
 
 type Status = "idle" | "loading" | "ready" | "error";
 export type PaginationStatus = "idle" | "loading" | "error" | "exhausted";
@@ -32,6 +33,7 @@ export function usePaperFeed(categories: string[]) {
   const generation = useRef(0);
   const requestController = useRef<AbortController | null>(null);
   const key = catsKey(categories);
+  const restorePaperId = useRef<string | null>(null);
 
   useEffect(() => {
     papersLen.current = papers.length;
@@ -86,6 +88,13 @@ export function usePaperFeed(categories: string[]) {
         ? fresh.length
         : papersLen.current + fresh.length;
       setPapers((prev) => (isReset ? fresh : [...prev, ...fresh]));
+      if (isReset && restorePaperId.current) {
+        const restored = fresh.findIndex(
+          (paper) => paper.arxivId === restorePaperId.current,
+        );
+        if (restored >= 0) setIndex(restored);
+        restorePaperId.current = null;
+      }
       setStatus("ready");
       setPaginationStatus(
         nextStart.current >= page.total || page.papers.length === 0
@@ -133,7 +142,21 @@ export function usePaperFeed(categories: string[]) {
     setPaginationStatus("idle");
     setPaginationError(null);
 
-    void loadMore(true);
+    const activeGeneration = generation.current;
+    void loadFeedPaperId(key).then(
+      (paperId) => {
+        if (generation.current !== activeGeneration) return;
+        restorePaperId.current = paperId;
+        void loadMore(true);
+      },
+      () => {
+        // Feed memory is a convenience. A damaged AsyncStorage row must not
+        // prevent the network feed from loading.
+        if (generation.current !== activeGeneration) return;
+        restorePaperId.current = null;
+        void loadMore(true);
+      },
+    );
     return () => requestController.current?.abort();
   }, [key, loadMore]);
 
@@ -144,9 +167,14 @@ export function usePaperFeed(categories: string[]) {
     }
   }, [index, papers.length, status, loadMore]);
 
-  const onIndexChange = useCallback((next: number) => {
-    setIndex(next);
-  }, []);
+  const onIndexChange = useCallback(
+    (next: number) => {
+      setIndex(next);
+      const paper = papers[next];
+      if (paper) void saveFeedPaperId(key, paper.arxivId);
+    },
+    [key, papers],
+  );
 
   const retry = useCallback(() => {
     if (papersLen.current === 0) {
