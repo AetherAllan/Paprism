@@ -21,6 +21,7 @@ import {
   EnrichedMarkdownText,
   type MarkdownStyle,
 } from "react-native-enriched-markdown";
+import CircleAlert from "lucide-react-native/icons/circle-alert";
 import Globe2 from "lucide-react-native/icons/earth";
 import Send from "lucide-react-native/icons/send";
 import Trash2 from "lucide-react-native/icons/trash-2";
@@ -84,6 +85,11 @@ const ASK_MARKDOWN_STYLE: MarkdownStyle = {
     lineHeight: 19,
     marginBottom: 8,
   },
+  math: {
+    color: colors.text,
+    backgroundColor: "transparent",
+  },
+  inlineMath: { color: colors.text },
 };
 
 export function AskSheet({
@@ -148,7 +154,7 @@ export function AskSheet({
     <View style={styles.overlay}>
       <Pressable style={styles.backdrop} onPress={onClose} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.positioner}
         pointerEvents="box-none"
       >
@@ -386,11 +392,18 @@ export function AskSheet({
                   <Send color={colors.background} size={18} />
                 </Pressable>
               </View>
-              <Text style={styles.searchHint}>
-                {supportsSearch
-                  ? t("ask.webSearchCost")
-                  : t("ask.webSearchUnavailable")}
-              </Text>
+              {supportsSearch ? (
+                <View style={styles.searchWarning}>
+                  <CircleAlert color={colors.text} size={13} />
+                  <Text style={styles.searchWarningText}>
+                    {t("ask.webSearchCost")}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.searchHint}>
+                  {t("ask.webSearchUnavailable")}
+                </Text>
+              )}
             </>
           )}
         </AnimatedBlurView>
@@ -539,6 +552,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textAlign: "center",
     marginTop: 5,
+  },
+  searchWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    marginHorizontal: 16,
+    marginTop: 5,
+  },
+  searchWarningText: {
+    flexShrink: 1,
+    color: colors.text,
+    fontSize: 10,
+    textAlign: "center",
   },
   setup: {
     margin: 18,
