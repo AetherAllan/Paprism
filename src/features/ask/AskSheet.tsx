@@ -509,7 +509,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  workingCopy: { flex: 1 },
+  // The assistant bubble sizes itself from its contents. `flex: 1` gives this
+  // child no intrinsic width on Android, so the activity label collapses and
+  // only the spinner remains visible.
+  workingCopy: { flexShrink: 1 },
   workingText: { color: colors.textSecondary, fontSize: 13 },
   workingDetail: { color: colors.dim, fontSize: 10, marginTop: 2 },
   composer: {
