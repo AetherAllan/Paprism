@@ -98,6 +98,7 @@ export function AskSheet({
   chatProfile,
   visibleBlockId,
   onClose,
+  onNavigateToSource,
   onOpenSettings,
   blurTarget,
 }: {
@@ -106,6 +107,7 @@ export function AskSheet({
   chatProfile: ProviderProfile | null;
   visibleBlockId: string | null;
   onClose: () => void;
+  onNavigateToSource: (blockId: string) => void;
   onOpenSettings: () => void;
   blurTarget: RefObject<View | null>;
 }) {
@@ -338,13 +340,15 @@ export function AskSheet({
                           {messageSources.map((source) => (
                             <Pressable
                               key={source.id}
-                              disabled={!source.url}
-                              onPress={() =>
-                                source.url && void Linking.openURL(source.url)
-                              }
+                              disabled={!source.url && !source.blockId}
+                              onPress={() => {
+                                if (source.url)
+                                  void Linking.openURL(source.url);
+                                else if (source.blockId)
+                                  onNavigateToSource(source.blockId);
+                              }}
                             >
                               <Text style={styles.sourceText} numberOfLines={1}>
-                                {source.kind === "web" ? "↗" : "§"}{" "}
                                 {source.title}
                               </Text>
                             </Pressable>
@@ -496,7 +500,12 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  sourceText: { color: colors.accent, fontSize: 11, marginTop: 3 },
+  sourceText: {
+    color: colors.accent,
+    fontSize: 11,
+    marginTop: 3,
+    textDecorationLine: "underline",
+  },
   retryText: {
     color: colors.accent,
     fontSize: 12,

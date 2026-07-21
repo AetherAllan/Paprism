@@ -777,6 +777,14 @@ export function PaperViewer({
           chatProfile={askProviderProfile}
           visibleBlockId={visibleBlockId}
           onClose={() => setAskOpen(false)}
+          onNavigateToSource={(blockId) => {
+            const index = document?.blocks.findIndex(
+              (block) => block.id === blockId,
+            );
+            if (index === undefined || index < 0) return;
+            setAskOpen(false);
+            scrollToDocumentIndex(index);
+          }}
           onOpenSettings={() => {
             setAskOpen(false);
             onOpenAskSettings();

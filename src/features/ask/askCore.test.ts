@@ -18,6 +18,15 @@ const document: PaperDocument = {
   sourceHash: "hash",
   blocks: [
     {
+      id: "heading",
+      anchorIds: [],
+      kind: "heading",
+      markdown: "## Intro",
+      plainText: "Intro",
+      protectedTokens: [],
+      sectionTitle: "Intro",
+    },
+    {
       id: "a",
       anchorIds: [],
       kind: "paragraph",
@@ -43,6 +52,12 @@ describe("Ask RAG core", () => {
     expect(chunks.map((chunk) => chunk.id)).toEqual(["a", "b:0", "b:1"]);
     expect(chunks[1]?.text.length).toBe(1200);
     expect(chunks[2]?.text.length).toBe(350);
+  });
+
+  test("does not let standalone headings consume semantic retrieval slots", () => {
+    const chunks = buildPaperChunks(document);
+    expect(chunks.some((chunk) => chunk.id === "heading")).toBe(false);
+    expect(chunks[0]?.sectionTitle).toBe("Intro");
   });
 
   test("round-trips float vectors and ranks by cosine similarity", () => {

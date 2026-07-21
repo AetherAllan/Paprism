@@ -15,7 +15,15 @@ export function buildPaperChunks(document: PaperDocument): AskChunk[] {
   let ordinal = 0;
   for (const block of document.blocks) {
     const text = block.plainText.trim();
-    if (!text || block.kind === "figure" || block.kind === "unsupported") {
+    // Headings are already carried by each following chunk as sectionTitle.
+    // Indexing them alone lets short title-only vectors crowd useful passages
+    // out of the fixed top-four retrieval result.
+    if (
+      !text ||
+      block.kind === "heading" ||
+      block.kind === "figure" ||
+      block.kind === "unsupported"
+    ) {
       continue;
     }
     if (text.length <= CHUNK_SIZE) {
