@@ -19,6 +19,8 @@ import {
   TextInput,
   useWindowDimensions,
   View,
+  type ScrollViewInstance,
+  type ViewInstance,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
@@ -138,14 +140,14 @@ export function AskSheet({
   onClose: () => void;
   onNavigateToSource: (blockId: string) => void;
   onOpenSettings: () => void;
-  blurTarget: RefObject<View | null>;
+  blurTarget: RefObject<ViewInstance | null>;
 }) {
   const { t } = useTranslation();
   const { showDialog, showError } = useAppDialog();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const { mounted, progress } = useSheetPresence(visible);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const restoredScroll = useRef(false);
   const pinnedToEnd = useRef(true);
   const persistUiRef = useRef(conversation.persistUi);

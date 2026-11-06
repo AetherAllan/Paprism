@@ -1,11 +1,11 @@
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ScrollView,
   StyleSheet,
   Text,
   View,
   type LayoutChangeEvent,
+  type ScrollViewInstance,
 } from "react-native";
 import Bookmark from "lucide-react-native/icons/bookmark";
 import BookmarkCheck from "lucide-react-native/icons/bookmark-check";
@@ -79,7 +79,7 @@ export const PaperCard = memo(function PaperCard({
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
-  const bodyRef = useRef<ScrollView>(null);
+  const bodyRef = useRef<ScrollViewInstance>(null);
   const pendingRestore = useRef<number | null>(null);
   const hydrated = useRef(false);
   const lastPersisted = useRef(0);

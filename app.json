@@ -5,6 +5,7 @@
     "orientation": "portrait",
     "icon": "./assets/AndroidLogo.png",
     "userInterfaceStyle": "dark",
+    "backgroundColor": "#08090A",
     "android": {
       "package": "com.paprism.app",
       "adaptiveIcon": {
@@ -36,6 +37,7 @@
           "enableMath": true
         }
       ],
+      "./plugins/withEarlyNightMode",
       "./plugins/withAbiSplits"
     ],
     "owner": "dudeguuuds-organization",

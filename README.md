@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <img alt="Expo 57" src="https://img.shields.io/badge/Expo-57-000000?style=flat-square&logo=expo" />
-  <img alt="React Native" src="https://img.shields.io/badge/React_Native-0.86-20232A?style=flat-square&logo=react" />
+  <img alt="Expo 58" src="https://img.shields.io/badge/Expo-58-000000?style=flat-square&logo=expo" />
+  <img alt="React Native" src="https://img.shields.io/badge/React_Native-0.88-20232A?style=flat-square&logo=react" />
   <img alt="Android first" src="https://img.shields.io/badge/platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white" />
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-white?style=flat-square" />
 </p>

@@ -12,7 +12,8 @@ import {
   useWindowDimensions,
   View,
   type ListRenderItemInfo,
-  type ViewToken,
+  type ListViewToken,
+  type ViewInstance,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
@@ -117,7 +118,7 @@ export const PaperViewer = memo(function PaperViewer({
   const reduceMotion = useReducedMotion();
   const [nativeReaderAvailable] = useState(hasNativeMarkdownRenderer);
   const list = useRef<FlatList<PaperBlock>>(null);
-  const blurTarget = useRef<View>(null);
+  const blurTarget = useRef<ViewInstance>(null);
   const loadController = useRef<AbortController | null>(null);
   const documentRef = useRef<PaperDocument | null>(null);
   const blockIndexRef = useRef<Map<string, number>>(new Map());
@@ -295,7 +296,7 @@ export const PaperViewer = memo(function PaperViewer({
   }, [document, enqueueTranslation, mode]);
 
   const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken<PaperBlock>[] }) => {
+    ({ viewableItems }: { viewableItems: ListViewToken[] }) => {
       const currentDocument = documentRef.current;
       if (!currentDocument) return;
       const indexes = viewableItems
