@@ -89,12 +89,28 @@ function coercePaper(raw: Record<string, unknown>): Paper | null {
   };
 }
 
+/** A timestamp defaulting to 0 sorts damaged rows last instead of crashing. */
+function coerceTimed<K extends "savedAt" | "viewedAt">(
+  value: unknown,
+  key: K,
+): (Paper & Record<K, number>)[] {
+  return records(value).flatMap((raw) => {
+    const paper = coercePaper(raw);
+    if (!paper) return [];
+    const time = raw[key];
+    return [
+      { ...paper, [key]: typeof time === "number" ? time : 0 } as Paper &
+        Record<K, number>,
+    ];
+  });
+}
+
 export async function loadSaved(): Promise<SavedEntry[]> {
-  return readJson(KEYS.saved, []);
+  return coerceTimed(await readJson<unknown>(KEYS.saved, []), "savedAt");
 }
 
 export async function loadHistory(): Promise<HistoryEntry[]> {
-  return readJson(KEYS.history, []);
+  return coerceTimed(await readJson<unknown>(KEYS.history, []), "viewedAt");
 }
 
 function coercePdf(raw: Record<string, unknown>): PdfDownloadEntry | null {

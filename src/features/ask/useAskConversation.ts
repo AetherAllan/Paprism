@@ -25,6 +25,9 @@ import type {
   EmbeddingProfile,
 } from "./askTypes";
 
+const UI_SAVE_DELAY_MS = 500;
+const STREAM_RENDER_INTERVAL_MS = 60;
+
 type Params = {
   paper: Paper | null;
   document: PaperDocument | null;
@@ -50,19 +53,69 @@ export function useAskConversation(params: Params) {
   const [busy, setBusy] = useState(false);
   const [activity, setActivity] = useState<string | null>(null);
   const [semanticUsed, setSemanticUsed] = useState(true);
-  const [chatOffset, setChatOffset] = useState(0);
+  // Only the restored position lives in state. The live offset changes on every
+  // scroll tick and must not re-render the reader underneath the sheet.
+  const [chatOffset, setRestoredOffset] = useState(0);
+  const liveOffset = useRef(0);
   const controller = useRef<AbortController | null>(null);
   const busyRef = useRef(false);
   const sessionId = useRef(0);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  // Updated in an effect, not during render, so cleanups in the commit that
+  // closes a paper still see that paper and can flush its latest draft.
+  const uiState = useRef({ draft, selection, paper });
+  useEffect(() => {
+    uiState.current = { draft, selection, paper };
+  });
+  // The thread UI may be saved only after that paper's thread has loaded.
+  // Otherwise the state reset below would overwrite a stored draft with "".
+  const loadedThread = useRef<string | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const saveUi = useCallback(async () => {
+    const {
+      draft: nextDraft,
+      selection: nextSelection,
+      paper: current,
+    } = uiState.current;
+    if (!current || loadedThread.current !== current.arxivId) return;
+    await saveAskThreadUi(
+      current.arxivId,
+      nextDraft,
+      liveOffset.current,
+      nextSelection,
+    );
+  }, []);
+
+  const scheduleUiSave = useCallback(() => {
+    // Drafts and the active quote should survive process death, but writing on
+    // every keystroke would turn SQLite into a token-by-token event log.
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
+      void saveUi().catch(() => undefined);
+    }, UI_SAVE_DELAY_MS);
+  }, [saveUi]);
+
+  const setChatOffset = useCallback(
+    (offset: number) => {
+      liveOffset.current = offset;
+      scheduleUiSave();
+    },
+    [scheduleUiSave],
+  );
 
   useEffect(() => {
     const id = ++sessionId.current;
     controller.current?.abort();
+    loadedThread.current = null;
+    liveOffset.current = 0;
     setMessages([]);
     setSources([]);
+    setDraft("");
     setSelection(null);
+    setRestoredOffset(0);
     setBusy(false);
     setActivity(null);
     if (!paper) return;
@@ -74,18 +127,26 @@ export function useAskConversation(params: Params) {
           loadAskSources(paper.arxivId),
         ]);
         if (sessionId.current !== id) return;
+        loadedThread.current = paper.arxivId;
+        liveOffset.current = thread?.chatOffset ?? 0;
         setDraft(thread?.draft ?? "");
         setSelection(thread?.selection ?? null);
-        setChatOffset(thread?.chatOffset ?? 0);
+        setRestoredOffset(thread?.chatOffset ?? 0);
         setMessages(nextMessages);
         setSources(nextSources);
       })
       .catch(() => undefined);
     return () => {
+      // Flush a pending edit against this paper before the identity changes.
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+        void saveUi().catch(() => undefined);
+      }
       controller.current?.abort();
       controller.current = null;
     };
-  }, [paper]);
+  }, [paper, saveUi]);
 
   const visibleChunk = useCallback(
     (blockId?: string | null): AskChunk | null => {
@@ -161,6 +222,26 @@ export function useAskConversation(params: Params) {
       const isRetry = Boolean(retryUser && retryAssistant);
       let messagesInserted = false;
       let checkpoint = Promise.resolve();
+      let streamedText = "";
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
+      const cancelFlush = () => {
+        if (flushTimer) clearTimeout(flushTimer);
+        flushTimer = null;
+      };
+      // Providers can emit dozens of chunks per second. Rendering at a steady
+      // rate keeps typing and scrolling responsive during long answers.
+      const flushStream = () => {
+        flushTimer = null;
+        if (sessionId.current !== currentSession) return;
+        const text = streamedText;
+        setMessages((previous) =>
+          previous.map((message) =>
+            message.id === assistant.id
+              ? { ...message, content: text, status: "streaming" }
+              : message,
+          ),
+        );
+      };
       try {
         if (isRetry) {
           await resetAskAssistantMessage(assistant.id);
@@ -180,8 +261,11 @@ export function useAskConversation(params: Params) {
           setSources((previous) =>
             previous.filter((source) => source.messageId !== assistant.id),
           );
+        } else {
+          // A retry re-sends an old question. It must not clear the question
+          // the user is currently typing.
+          setDraft("");
         }
-        setDraft("");
         setBusy(true);
         setSemanticUsed(true);
         setActivity("retrieving");
@@ -238,15 +322,10 @@ export function useAskConversation(params: Params) {
           webSearch && profile.kind === "openrouter",
           abort.signal,
           (text) => {
+            streamedText = text;
             if (sessionId.current !== currentSession) return;
             setActivity("answering");
-            setMessages((previous) =>
-              previous.map((message) =>
-                message.id === assistant.id
-                  ? { ...message, content: text, status: "streaming" }
-                  : message,
-              ),
-            );
+            flushTimer ??= setTimeout(flushStream, STREAM_RENDER_INTERVAL_MS);
             const now = Date.now();
             if (now - lastCheckpoint >= 1000) {
               lastCheckpoint = now;
@@ -256,6 +335,7 @@ export function useAskConversation(params: Params) {
             }
           },
         );
+        cancelFlush();
         if (sessionId.current !== currentSession) {
           await updateAskMessage(assistant.id, "", "interrupted");
           return;
@@ -263,37 +343,35 @@ export function useAskConversation(params: Params) {
         await checkpoint;
         await updateAskMessage(assistant.id, result.text, "complete");
         const newSources: AskSource[] = [];
+        const addSource = async (source: Omit<AskSource, "id">) => {
+          const id = await insertAskSource(source);
+          newSources.push({ ...source, id });
+        };
         if (selection) {
-          const source = {
+          await addSource({
             messageId: assistant.id,
-            kind: "selection" as const,
+            kind: "selection",
             title: selection.sectionTitle ?? "Selected passage",
             quote: selection.text,
             blockId: selection.blockId,
-          };
-          await insertAskSource(source);
-          newSources.push({ ...source, id: Date.now() - 1 });
+          });
         }
         for (const chunk of evidence) {
-          const source = {
+          await addSource({
             messageId: assistant.id,
-            kind: "paper" as const,
+            kind: "paper",
             title: chunk.sectionTitle ?? paper.title,
             quote: chunk.text,
             blockId: chunk.blockId,
-          };
-          await insertAskSource(source);
-          newSources.push({ ...source, id: Date.now() + newSources.length });
+          });
         }
         for (const citation of result.annotations) {
-          const source = {
+          await addSource({
             messageId: assistant.id,
-            kind: "web" as const,
+            kind: "web",
             title: citation.title,
             url: citation.url,
-          };
-          await insertAskSource(source);
-          newSources.push({ ...source, id: Date.now() + newSources.length });
+          });
         }
         setMessages((previous) =>
           previous.map((message) =>
@@ -304,31 +382,25 @@ export function useAskConversation(params: Params) {
         );
         setSources((previous) => [...previous, ...newSources]);
       } catch (error) {
+        cancelFlush();
         if (!messagesInserted) throw error;
         await checkpoint;
-        const interrupted = abort.signal.aborted;
-        await updateAskMessage(
-          assistant.id,
-          interrupted
-            ? ""
-            : error instanceof Error
-              ? error.message
-              : "Ask failed",
-          interrupted ? "interrupted" : "error",
-        );
+        // Keep whatever already arrived: stopping a long answer, or a stream
+        // that stalls near its end, should not discard the useful part.
+        const partial = streamedText.trim() ? streamedText : "";
+        const stopped = abort.signal.aborted || partial.length > 0;
+        const content = stopped
+          ? partial
+          : error instanceof Error
+            ? error.message
+            : "Ask failed";
+        const status = stopped ? "interrupted" : "error";
+        await updateAskMessage(assistant.id, content, status);
         if (sessionId.current === currentSession) {
           setMessages((previous) =>
             previous.map((message) =>
               message.id === assistant.id
-                ? {
-                    ...message,
-                    content: interrupted
-                      ? ""
-                      : error instanceof Error
-                        ? error.message
-                        : "Ask failed",
-                    status: interrupted ? "interrupted" : "error",
-                  }
+                ? { ...message, content, status }
                 : message,
             ),
           );
@@ -354,38 +426,38 @@ export function useAskConversation(params: Params) {
     ],
   );
 
-  const persistUi = useCallback(
-    async (nextDraft = draft, nextOffset = chatOffset) => {
-      if (!paper) return;
-      await saveAskThreadUi(paper.arxivId, nextDraft, nextOffset, selection);
-    },
-    [chatOffset, draft, paper, selection],
-  );
+  const persistUi = useCallback(async () => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    await saveUi();
+  }, [saveUi]);
 
   useEffect(() => {
     if (!paper) return;
-    // Drafts and the active quote should survive process death, but writing on
-    // every keystroke would turn SQLite into a token-by-token event log.
-    const timeout = setTimeout(() => {
-      void saveAskThreadUi(paper.arxivId, draft, chatOffset, selection).catch(
-        () => undefined,
-      );
-    }, 500);
-    return () => clearTimeout(timeout);
-  }, [chatOffset, draft, paper, selection]);
+    scheduleUiSave();
+  }, [draft, paper, scheduleUiSave, selection]);
+
+  const stop = useCallback(() => {
+    controller.current?.abort();
+  }, []);
 
   const clear = useCallback(async () => {
     if (!paper) return;
     controller.current?.abort();
     sessionId.current += 1;
     busyRef.current = false;
+    liveOffset.current = 0;
     await clearPaperAskData(paper.arxivId);
     await ensureAskThread(paper);
     setMessages([]);
     setSources([]);
     setDraft("");
     setSelection(null);
+    setRestoredOffset(0);
     setBusy(false);
+    setActivity(null);
   }, [paper]);
 
   const retry = useCallback(
@@ -419,6 +491,7 @@ export function useAskConversation(params: Params) {
       setChatOffset,
       send,
       retry,
+      stop,
       persistUi,
       clear,
     }),
@@ -434,7 +507,9 @@ export function useAskConversation(params: Params) {
       selection,
       semanticUsed,
       send,
+      setChatOffset,
       sources,
+      stop,
     ],
   );
 }

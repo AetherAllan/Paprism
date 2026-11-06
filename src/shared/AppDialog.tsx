@@ -16,10 +16,12 @@ import Animated, {
   ZoomIn,
   useReducedMotion,
 } from "react-native-reanimated";
-import { colors, radii } from "./theme";
+import { colors, radii, surfaces, typography } from "./theme";
+import { Button, type ButtonVariant } from "./ui/Button";
 
 export type DialogKind = "info" | "success" | "error" | "destructive";
-export type DialogActionStyle = "default" | "cancel" | "destructive";
+export type DialogActionStyle =
+  "default" | "secondary" | "cancel" | "destructive";
 
 export type DialogAction = {
   text: string;
@@ -40,6 +42,13 @@ type DialogContextValue = {
 };
 
 const DialogContext = createContext<DialogContextValue | null>(null);
+
+const ACTION_VARIANT: Record<DialogActionStyle, ButtonVariant> = {
+  default: "primary",
+  secondary: "secondary",
+  cancel: "secondary",
+  destructive: "danger",
+};
 
 export function AppDialogProvider({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -93,7 +102,9 @@ function DialogHost({
   const actions = dialog.actions?.length
     ? dialog.actions.slice(0, 3)
     : [{ text: t("common.done") }];
-  const dismissible = kind !== "destructive";
+  // Tapping the backdrop must not cancel a destructive prompt by accident, but
+  // the system back key always means cancel. Dismissing never runs the action.
+  const backdropDismisses = kind !== "destructive";
   const Icon =
     kind === "success"
       ? CircleCheck
@@ -104,7 +115,7 @@ function DialogHost({
           : Info;
   const iconColor =
     kind === "success"
-      ? "#34d399"
+      ? colors.success
       : kind === "error" || kind === "destructive"
         ? colors.danger
         : colors.accent;
@@ -120,9 +131,8 @@ function DialogHost({
       visible
       animationType="none"
       statusBarTranslucent
-      onRequestClose={() => {
-        if (dismissible) onDismiss();
-      }}
+      navigationBarTranslucent
+      onRequestClose={onDismiss}
     >
       <Animated.View
         entering={reduceMotion ? undefined : FadeIn.duration(160)}
@@ -130,7 +140,7 @@ function DialogHost({
       >
         <Pressable
           accessibilityLabel={t("common.close")}
-          disabled={!dismissible}
+          disabled={!backdropDismisses}
           onPress={onDismiss}
           style={StyleSheet.absoluteFill}
         />
@@ -138,14 +148,16 @@ function DialogHost({
           accessibilityViewIsModal
           importantForAccessibility="yes"
           entering={reduceMotion ? undefined : ZoomIn.duration(180)}
-          style={styles.card}
+          style={[surfaces.card, styles.card]}
         >
-          <View style={[styles.icon, { backgroundColor: `${iconColor}18` }]}>
-            <Icon color={iconColor} size={24} strokeWidth={1.9} />
+          <View style={[surfaces.control, styles.icon]}>
+            <Icon color={iconColor} size={22} strokeWidth={1.7} />
           </View>
-          <Text style={styles.title}>{dialog.title}</Text>
+          <Text accessibilityRole="header" style={styles.title}>
+            {dialog.title}
+          </Text>
           {dialog.message ? (
-            <Text selectable style={styles.message}>
+            <Text selectable numberOfLines={8} style={styles.message}>
               {dialog.message}
             </Text>
           ) : null}
@@ -155,33 +167,20 @@ function DialogHost({
               actions.length === 2 && styles.actionsHorizontal,
             ]}
           >
-            {actions.map((action, index) => {
-              const actionStyle = action.style ?? "default";
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  key={`${action.text}-${index}`}
-                  onPress={() => selectAction(action)}
-                  style={({ pressed }) => [
-                    styles.action,
-                    actions.length === 2 && styles.actionHorizontal,
-                    actionStyle === "default" && styles.actionPrimary,
-                    actionStyle === "destructive" && styles.actionDestructive,
-                    pressed && styles.actionPressed,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.actionText,
-                      actionStyle === "default" && styles.actionPrimaryText,
-                      actionStyle === "destructive" && styles.destructiveText,
-                    ]}
-                  >
-                    {action.text}
-                  </Text>
-                </Pressable>
-              );
-            })}
+            {actions.map((action, index) => (
+              <Button
+                key={`${action.text}-${index}`}
+                label={action.text}
+                variant={
+                  // In a stack of choices, cancel steps back behind them.
+                  action.style === "cancel" && actions.length > 2
+                    ? "ghost"
+                    : ACTION_VARIANT[action.style ?? "default"]
+                }
+                onPress={() => selectAction(action)}
+                style={actions.length === 2 ? styles.actionHorizontal : null}
+              />
+            ))}
           </View>
         </Animated.View>
       </Animated.View>
@@ -194,53 +193,31 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
-    backgroundColor: "rgba(0,0,0,0.74)",
+    padding: 22,
+    backgroundColor: colors.scrim,
   },
   card: {
     width: "100%",
     maxWidth: 420,
-    padding: 20,
-    borderRadius: 24,
-    backgroundColor: "#18181b",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.14)",
+    padding: 22,
+    borderRadius: radii.xlarge,
+    backgroundColor: colors.surface,
+    borderTopColor: colors.highlight,
   },
   icon: {
     width: 46,
     height: 46,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 23,
     marginBottom: 16,
   },
-  title: { color: colors.text, fontSize: 20, fontWeight: "800" },
+  title: { ...typography.headline, color: colors.text },
   message: {
+    ...typography.body,
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 9,
+    marginTop: 8,
   },
-  actions: { gap: 9, marginTop: 22 },
+  actions: { gap: 8, marginTop: 22 },
   actionsHorizontal: { flexDirection: "row" },
-  action: {
-    minHeight: 46,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    borderRadius: radii.medium,
-    backgroundColor: colors.surfacePressed,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
-  },
   actionHorizontal: { flex: 1 },
-  actionPrimary: { backgroundColor: colors.text, borderColor: colors.text },
-  actionDestructive: {
-    backgroundColor: "rgba(248,113,113,0.12)",
-    borderColor: "rgba(248,113,113,0.38)",
-  },
-  actionPressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
-  actionText: { color: colors.textSecondary, fontSize: 14, fontWeight: "700" },
-  actionPrimaryText: { color: colors.inverse },
-  destructiveText: { color: colors.danger },
 });

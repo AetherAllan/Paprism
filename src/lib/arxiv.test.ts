@@ -1,7 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseAtomFeed } from "./arxiv";
+import { fetchPaperPage, parseAtomFeed } from "./arxiv";
 
 const fixture = readFileSync(
   join(import.meta.dir, "__fixtures__", "arxiv-feed.xml"),
@@ -31,5 +31,29 @@ describe("arXiv Atom parser", () => {
     expect(
       parseAtomFeed(fixture, 0).papers.map((paper) => paper.arxivId),
     ).toEqual(["2607.01234v2", "hep-th/9901001v1"]);
+  });
+});
+
+describe("arXiv requests", () => {
+  const realFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  test("a stalled request fails with a deadline instead of hanging", async () => {
+    // Every arXiv request shares one queue, so a request that never settles
+    // would block the feed, search, and reader behind it.
+    globalThis.fetch = ((_url: string, init: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => {
+          const error = new Error("Aborted");
+          error.name = "AbortError";
+          reject(error);
+        });
+      })) as typeof fetch;
+
+    await expect(fetchPaperPage({ timeoutMs: 5 })).rejects.toThrow(
+      "arXiv request timed out",
+    );
   });
 });

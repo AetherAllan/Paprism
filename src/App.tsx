@@ -12,6 +12,7 @@ import {
   LibraryScreen,
   type LibrarySection,
 } from "@/features/library/LibraryScreen";
+import { DownloadBusyError } from "@/features/library/downloadTask";
 import { PdfMetadataError, useLibrary } from "@/features/library/useLibrary";
 import { AppMenu } from "@/features/menu/AppMenu";
 import { SearchScreen } from "@/features/search/SearchScreen";
@@ -37,6 +38,10 @@ type ViewerState = {
   paper: Paper;
   sourceUri?: string;
 };
+
+// A card counts as viewed once it has stayed on screen for a moment. Flicking
+// through a stack of papers should not rewrite the whole history for each one.
+const HISTORY_DWELL_MS = 700;
 
 export default function App() {
   return (
@@ -86,6 +91,7 @@ function AppContent() {
     hasOfflinePaper,
     hasPdf,
     getOfflinePaper,
+    getPdf,
     toggleSave,
     unsave,
     recordHistory,
@@ -111,6 +117,10 @@ function AppContent() {
         });
         return;
       }
+      if (error instanceof DownloadBusyError) {
+        showDialog({ title: t("library.downloadBusy") });
+        return;
+      }
       showDialogError(t("common.operationFailed"), error);
     },
     [showDialog, showDialogError, t],
@@ -122,7 +132,10 @@ function AppContent() {
     // a prefetched page must not make the current paper look newly viewed. We
     // also wait for persisted history to load so this write cannot be replaced
     // by useLibrary's initial hydration.
-    void recordHistory(visibleFeedPaper).catch(showError);
+    const timeout = setTimeout(() => {
+      void recordHistory(visibleFeedPaper).catch(showError);
+    }, HISTORY_DWELL_MS);
+    return () => clearTimeout(timeout);
   }, [libraryReady, visibleFeedPaper, recordHistory, showError]);
 
   const openPaper = useCallback(
@@ -185,6 +198,17 @@ function AppContent() {
     t,
   ]);
 
+  const onOpenPdf = useCallback(
+    async (entry: PdfDownloadEntry) => {
+      try {
+        await openPdf(entry);
+      } catch (error) {
+        showError(error);
+      }
+    },
+    [openPdf, showError],
+  );
+
   const onDownload = useCallback(
     (paper: Paper) => {
       const offline = getOfflinePaper(paper.arxivId);
@@ -192,16 +216,25 @@ function AppContent() {
         openOffline(offline);
         return;
       }
+      // A saved PDF is opened rather than fetched again. Downloading it twice
+      // would write a duplicate into the user's public downloads folder.
+      const pdf = getPdf(paper.arxivId);
       showDialog({
         title: t("library.downloadChoiceTitle"),
         message: paper.title,
         actions: [
-          {
-            text: t("library.downloadPdf"),
-            onPress: () => void downloadPdf(paper).catch(showError),
-          },
+          pdf
+            ? {
+                text: t("library.openPdf"),
+                onPress: () => void onOpenPdf(pdf),
+              }
+            : {
+                text: t("library.downloadPdf"),
+                onPress: () => void downloadPdf(paper).catch(showError),
+              },
           {
             text: t("library.downloadOffline"),
+            style: "secondary",
             onPress: () =>
               void downloadOffline(paper).then(openOffline).catch(showError),
           },
@@ -213,6 +246,8 @@ function AppContent() {
       downloadOffline,
       downloadPdf,
       getOfflinePaper,
+      getPdf,
+      onOpenPdf,
       openOffline,
       showDialog,
       showError,
@@ -220,16 +255,60 @@ function AppContent() {
     ],
   );
 
+  const onToggleSave = useCallback(
+    (paper: Paper) => void toggleSave(paper).catch(showError),
+    [showError, toggleSave],
+  );
+  const onUnsave = useCallback(
+    (arxivId: string) => void unsave(arxivId).catch(showError),
+    [showError, unsave],
+  );
+  const onClearHistory = useCallback(
+    () => void clearHistory().catch(showError),
+    [clearHistory, showError],
+  );
+  const onDeleteDownloads = useCallback(
+    (arxivId: string) => void deleteDownloads(arxivId).catch(showError),
+    [deleteDownloads, showError],
+  );
+
+  const providerResetAll = providerManager.resetAll;
+  const embeddingClear = embeddingManager.clear;
   const resetAllSettings = useCallback(async () => {
-    await providerManager.resetAll();
-    await embeddingManager.clear();
+    await providerResetAll();
+    await embeddingClear();
     await reset();
-  }, [embeddingManager, providerManager, reset]);
+  }, [embeddingClear, providerResetAll, reset]);
 
   const openMenu = useCallback(() => {
     setActiveSection(null);
     setMenuOpen(true);
   }, []);
+  const openCategories = useCallback(() => setPickerOpen(true), []);
+  const closeCategories = useCallback(() => setPickerOpen(false), []);
+  const openMenuFromFeed = useCallback(() => setMenuOpen(true), []);
+  const closeMenuComplete = useCallback(() => setMenuOpen(false), []);
+  const openSection = useCallback((section: AppSection) => {
+    setMenuOpen(true);
+    setActiveSection(section);
+  }, []);
+  const openDownloads = useCallback(
+    () => openSection("downloads"),
+    [openSection],
+  );
+  const closeViewer = useCallback(() => setViewer(null), []);
+  const openTranslationSettings = useCallback(() => {
+    setViewer(null);
+    openSection("translation");
+  }, [openSection]);
+  const openAskSettings = useCallback(() => {
+    setViewer(null);
+    openSection("ask");
+  }, [openSection]);
+  const onOpenPdfEntry = useCallback(
+    (entry: PdfDownloadEntry) => void onOpenPdf(entry),
+    [onOpenPdf],
+  );
 
   const libraryVisible =
     activeSection === "saved" ||
@@ -247,17 +326,6 @@ function AppContent() {
     ? activeSection
     : "about";
 
-  const onOpenPdf = useCallback(
-    async (entry: PdfDownloadEntry) => {
-      try {
-        await openPdf(entry);
-      } catch (error) {
-        showError(error);
-      }
-    },
-    [openPdf, showError],
-  );
-
   if (
     !prefsReady ||
     !libraryReady ||
@@ -268,7 +336,7 @@ function AppContent() {
       <SafeAreaProvider>
         <GestureHandlerRootView style={styles.root}>
           <StatusBar style="light" />
-          <LoadingScreen />
+          <LoadingScreen showHeader />
         </GestureHandlerRootView>
       </SafeAreaProvider>
     );
@@ -289,8 +357,9 @@ function AppContent() {
           paginationError={feed.paginationError}
           onRetry={feed.retry}
           categories={prefs.categories}
-          onOpenCategories={() => setPickerOpen(true)}
-          onOpenMenu={() => setMenuOpen(true)}
+          onOpenCategories={openCategories}
+          onOpenMenu={openMenuFromFeed}
+          onOpenDownloads={openDownloads}
           updateAvailable={appUpdate.status === "available"}
           onRead={openPaper}
           isSaved={isSaved}
@@ -298,7 +367,7 @@ function AppContent() {
           hasPdf={hasPdf}
           downloadingId={downloadingId}
           canCancelDownload={canCancelDownload}
-          onToggleSave={(paper) => void toggleSave(paper).catch(showError)}
+          onToggleSave={onToggleSave}
           onDownload={onDownload}
           onCancelDownload={cancelDownload}
         />
@@ -306,7 +375,7 @@ function AppContent() {
           visible={pickerOpen}
           selected={prefs.categories}
           onSelect={setCategories}
-          onClose={() => setPickerOpen(false)}
+          onClose={closeCategories}
         />
         <LibraryScreen
           visible={libraryVisible}
@@ -314,18 +383,12 @@ function AppContent() {
           saved={saved}
           history={history}
           downloads={downloads}
-          onUnsave={(arxivId) => void unsave(arxivId).catch(showError)}
-          onClearHistory={() => void clearHistory().catch(showError)}
-          onOpenPaper={(paper) => {
-            openPaper(paper);
-          }}
-          onOpenOffline={(entry) => {
-            openOffline(entry);
-          }}
-          onOpenPdf={(entry) => void onOpenPdf(entry)}
-          onDeleteDownloads={(arxivId) =>
-            void deleteDownloads(arxivId).catch(showError)
-          }
+          onUnsave={onUnsave}
+          onClearHistory={onClearHistory}
+          onOpenPaper={openPaper}
+          onOpenOffline={openOffline}
+          onOpenPdf={onOpenPdfEntry}
+          onDeleteDownloads={onDeleteDownloads}
           onBack={openMenu}
         />
         <SearchScreen
@@ -335,7 +398,7 @@ function AppContent() {
           hasOfflinePaper={hasOfflinePaper}
           hasPdf={hasPdf}
           onRead={openPaper}
-          onToggleSave={(paper) => void toggleSave(paper).catch(showError)}
+          onToggleSave={onToggleSave}
           onDownload={onDownload}
           onBack={openMenu}
         />
@@ -359,10 +422,8 @@ function AppContent() {
           interactive={
             menuOpen && activeSection === null && viewer === null && !pickerOpen
           }
-          onSelect={(section) => {
-            setActiveSection(section);
-          }}
-          onCloseComplete={() => setMenuOpen(false)}
+          onSelect={setActiveSection}
+          onCloseComplete={closeMenuComplete}
           updateAvailable={appUpdate.status === "available"}
         />
         <PaperViewer
@@ -375,19 +436,9 @@ function AppContent() {
           embeddingProfile={embeddingManager.profile}
           getEmbeddingApiKey={embeddingManager.getApiKey}
           getProviderApiKey={providerManager.getApiKey}
-          onOpenSettings={() => {
-            setViewer(null);
-            setMenuOpen(true);
-            setActiveSection("translation");
-          }}
-          onOpenAskSettings={() => {
-            setViewer(null);
-            setMenuOpen(true);
-            setActiveSection("ask");
-          }}
-          onClose={() => {
-            setViewer(null);
-          }}
+          onOpenSettings={openTranslationSettings}
+          onOpenAskSettings={openAskSettings}
+          onClose={closeViewer}
         />
       </GestureHandlerRootView>
     </SafeAreaProvider>

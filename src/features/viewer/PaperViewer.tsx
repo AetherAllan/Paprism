@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Linking,
   Modal,
   Platform,
@@ -10,6 +9,7 @@ import {
   StyleSheet,
   Text,
   UIManager,
+  useWindowDimensions,
   View,
   type ListRenderItemInfo,
   type ViewToken,
@@ -17,22 +17,33 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
-import Languages from "lucide-react-native/icons/languages";
+import ExternalLink from "lucide-react-native/icons/external-link";
+import FileText from "lucide-react-native/icons/file-text";
 import ListTree from "lucide-react-native/icons/list-tree";
 import MessageCircleQuestion from "lucide-react-native/icons/message-circle-question-mark";
+import RefreshCw from "lucide-react-native/icons/refresh-cw";
+import TriangleAlert from "lucide-react-native/icons/triangle-alert";
 import X from "lucide-react-native/icons/x";
-import {
-  EnrichedMarkdownText,
-  type MarkdownStyle,
-} from "react-native-enriched-markdown";
-import { SvgUri } from "react-native-svg";
 import { StatusBar } from "expo-status-bar";
 import { BlurTargetView } from "expo-blur";
 import { useTranslation } from "react-i18next";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { ProviderProfile } from "@/features/settings/providerCore";
 import { resolveTranslateLang, type TranslateLangPref } from "@/lib/storage";
-import { colors, radii } from "@/shared/theme";
+import { formatPaperDate } from "@/shared/format";
+import { colors, motion, spacing, typography } from "@/shared/theme";
+import { Button } from "@/shared/ui/Button";
+import { EmptyState } from "@/shared/ui/EmptyState";
+import { GradientFade } from "@/shared/ui/GradientFade";
+import { IconButton } from "@/shared/ui/IconButton";
+import { Segmented } from "@/shared/ui/Segmented";
 import type { Paper } from "@/types/paper";
 import { useAppDialog } from "@/shared/AppDialog";
 import { AskSheet } from "@/features/ask/AskSheet";
@@ -42,8 +53,11 @@ import {
   loadReadingState,
   saveReaderPosition,
 } from "@/features/ask/askDatabase";
+import { ContentsSheet } from "./ContentsSheet";
+import { FigureViewer } from "./FigureViewer";
 import { loadPaperDocument } from "./paperSource";
 import type { PaperAsset, PaperBlock, PaperDocument } from "./paperDocument";
+import { ReaderBlock, type ReaderMode } from "./ReaderBlock";
 import { resolveInitialReaderPosition } from "./readerPosition";
 import {
   PAPER_TITLE_TRANSLATION_ID,
@@ -65,11 +79,12 @@ type Props = {
   onClose: () => void;
 };
 
-type Mode = "source" | "dual" | "translation";
-const ignoreImageError = () => undefined;
-const accent = colors.accent;
-const accentStrong = "#8b5cf6";
-const translatedText = "#ddd6fe";
+const BAR_HEIGHT = 56;
+const BAR_FADE_HEIGHT = 22;
+const DOCK_HEIGHT = 96;
+// Scroll distance before the mode dock reacts, so small jitters do not toggle it.
+const DOCK_SCROLL_THRESHOLD = 14;
+const blockKey = (block: PaperBlock) => block.id;
 
 function hasNativeMarkdownRenderer() {
   return (
@@ -77,146 +92,11 @@ function hasNativeMarkdownRenderer() {
   );
 }
 
-const MARKDOWN_STYLE: MarkdownStyle = {
-  paragraph: {
-    color: colors.textSecondary,
-    fontSize: 17,
-    lineHeight: 27,
-    marginBottom: 8,
-  },
-  h1: {
-    color: colors.text,
-    fontSize: 28,
-    lineHeight: 35,
-    marginTop: 22,
-    marginBottom: 10,
-  },
-  h2: {
-    color: colors.text,
-    fontSize: 24,
-    lineHeight: 31,
-    marginTop: 20,
-    marginBottom: 9,
-  },
-  h3: {
-    color: colors.text,
-    fontSize: 21,
-    lineHeight: 28,
-    marginTop: 18,
-    marginBottom: 8,
-  },
-  h4: {
-    color: colors.textSecondary,
-    fontSize: 19,
-    lineHeight: 26,
-    marginTop: 16,
-    marginBottom: 7,
-  },
-  h5: {
-    color: colors.muted,
-    fontSize: 18,
-    lineHeight: 25,
-    marginTop: 14,
-    marginBottom: 7,
-  },
-  h6: {
-    color: colors.muted,
-    fontSize: 17,
-    lineHeight: 24,
-    marginTop: 14,
-    marginBottom: 7,
-  },
-  link: { color: "#c4b5fd", underline: true },
-  blockquote: {
-    color: colors.textSecondary,
-    fontSize: 16,
-    lineHeight: 25,
-    borderColor: accent,
-    borderWidth: 3,
-    gapWidth: 12,
-    backgroundColor: colors.surface,
-    marginBottom: 10,
-  },
-  list: {
-    color: colors.textSecondary,
-    fontSize: 17,
-    lineHeight: 27,
-    bulletColor: accent,
-    markerColor: accent,
-    gapWidth: 8,
-    marginLeft: 8,
-    marginBottom: 10,
-  },
-  table: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-    headerBackgroundColor: colors.surfacePressed,
-    headerTextColor: colors.text,
-    rowEvenBackgroundColor: colors.surface,
-    rowOddBackgroundColor: colors.surfaceRaised,
-    borderColor: colors.borderStrong,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 6,
-    cellPaddingHorizontal: 8,
-    cellPaddingVertical: 7,
-    marginBottom: 12,
-  },
-  code: {
-    color: colors.textSecondary,
-    backgroundColor: colors.surfacePressed,
-    fontSize: 14,
-  },
-  codeBlock: {
-    color: colors.textSecondary,
-    backgroundColor: colors.surface,
-    borderColor: colors.borderStrong,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 12,
-  },
-  math: {
-    color: colors.text,
-    fontSize: 20,
-    backgroundColor: colors.surface,
-    padding: 8,
-    marginTop: 8,
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  inlineMath: { color: colors.text },
-  image: { borderRadius: 7, marginTop: 8, marginBottom: 10 },
-};
+function openWebLink(url: string) {
+  void Linking.openURL(url).catch(() => undefined);
+}
 
-const TRANSLATION_STYLE: MarkdownStyle = {
-  ...MARKDOWN_STYLE,
-  paragraph: { ...MARKDOWN_STYLE.paragraph, color: translatedText },
-  h1: { ...MARKDOWN_STYLE.h1, color: "#ede9fe" },
-  h2: { ...MARKDOWN_STYLE.h2, color: "#ede9fe" },
-  h3: { ...MARKDOWN_STYLE.h3, color: translatedText },
-  h4: { ...MARKDOWN_STYLE.h4, color: translatedText },
-  h5: { ...MARKDOWN_STYLE.h5, color: "#c4b5fd" },
-  h6: { ...MARKDOWN_STYLE.h6, color: "#c4b5fd" },
-  list: { ...MARKDOWN_STYLE.list, color: translatedText },
-  table: { ...MARKDOWN_STYLE.table, color: translatedText },
-};
-
-const DUAL_TRANSLATION_STYLE: MarkdownStyle = {
-  ...TRANSLATION_STYLE,
-  // In dual mode the translated heading immediately follows the same source
-  // heading. Preserve its typography without stacking two section top margins.
-  h1: { ...TRANSLATION_STYLE.h1, marginTop: 0 },
-  h2: { ...TRANSLATION_STYLE.h2, marginTop: 0 },
-  h3: { ...TRANSLATION_STYLE.h3, marginTop: 0 },
-  h4: { ...TRANSLATION_STYLE.h4, marginTop: 0 },
-  h5: { ...TRANSLATION_STYLE.h5, marginTop: 0 },
-  h6: { ...TRANSLATION_STYLE.h6, marginTop: 0 },
-};
-
-export function PaperViewer({
+export const PaperViewer = memo(function PaperViewer({
   paper,
   translateLangPref,
   sourceUri,
@@ -233,11 +113,14 @@ export function PaperViewer({
   const { t } = useTranslation();
   const { showDialog } = useAppDialog();
   const insets = useSafeAreaInsets();
-  const nativeReaderAvailable = hasNativeMarkdownRenderer();
+  const { width: windowWidth } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
+  const [nativeReaderAvailable] = useState(hasNativeMarkdownRenderer);
   const list = useRef<FlatList<PaperBlock>>(null);
   const blurTarget = useRef<View>(null);
   const loadController = useRef<AbortController | null>(null);
   const documentRef = useRef<PaperDocument | null>(null);
+  const blockIndexRef = useRef<Map<string, number>>(new Map());
   const visibleIds = useRef<string[]>([]);
   const firstVisibleId = useRef<string | null>(null);
   const enqueueRef = useRef<(ids: string[]) => Promise<void>>(
@@ -247,20 +130,27 @@ export function PaperViewer({
   const [document, setDocument] = useState<PaperDocument | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [mode, setMode] = useState<Mode>("source");
+  const [mode, setMode] = useState<ReaderMode>("source");
   const [tocOpen, setTocOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
-  const [visibleBlockId, setVisibleBlockId] = useState<string | null>(null);
+  const [figure, setFigure] = useState<PaperAsset | null>(null);
+  // Changes only when reading crosses into a new section, not on every scroll.
+  const [visibleSection, setVisibleSection] = useState<string | null>(null);
   const readerPositionReady = useRef(false);
   const expectedInitialOffset = useRef(0);
   const renderStartIndexRef = useRef(0);
-  const pendingNavigationIndex = useRef<number | null>(null);
+  const dragStartY = useRef<number | null>(null);
+  const dockTarget = useRef(0);
   const [renderStartIndex, setRenderStartIndex] = useState(0);
+  // Bumped to remount the list at a new starting block.
+  const [listKey, setListKey] = useState(0);
   const [showPaperHeader, setShowPaperHeader] = useState(true);
   const [initialContentOffset, setInitialContentOffset] = useState<
     number | null
   >(null);
-  const readerTopPadding = Math.max(insets.top, 8) + 64;
+  const readerTopPadding = Math.max(insets.top, 8) + BAR_HEIGHT + 12;
+  const readingProgress = useSharedValue(0);
+  const dockHidden = useSharedValue(0);
 
   const targetLang = useMemo(
     () => resolveTranslateLang(translateLangPref),
@@ -292,10 +182,13 @@ export function PaperViewer({
   );
   const anchorIndex = useMemo(() => {
     const result = new Map<string, number>();
+    const blockIndexes = new Map<string, number>();
     document?.blocks.forEach((block, index) => {
       result.set(block.id, index);
+      blockIndexes.set(block.id, index);
       for (const anchor of block.anchorIds) result.set(anchor, index);
     });
+    blockIndexRef.current = blockIndexes;
     return result;
   }, [document]);
   const renderedBlocks = useMemo(
@@ -311,12 +204,18 @@ export function PaperViewer({
     readerPositionReady.current = false;
     expectedInitialOffset.current = 0;
     renderStartIndexRef.current = 0;
-    pendingNavigationIndex.current = null;
     firstVisibleId.current = null;
+    visibleIds.current = [];
+    dragStartY.current = null;
+    dockTarget.current = 0;
     setRenderStartIndex(0);
     setShowPaperHeader(true);
     setInitialContentOffset(null);
-    setVisibleBlockId(null);
+    setVisibleSection(null);
+    setFigure(null);
+    setTocOpen(false);
+    readingProgress.value = 0;
+    dockHidden.value = 0;
     if (!paper || !nativeReaderAvailable) {
       setDocument(null);
       setLoading(false);
@@ -353,7 +252,6 @@ export function PaperViewer({
           setInitialContentOffset(hasSavedBlock ? contentOffset : null);
           expectedInitialOffset.current = contentOffset;
           firstVisibleId.current = initial.blockId;
-          setVisibleBlockId(initial.blockId);
           readerPositionReady.current = !hasSavedBlock;
           setDocument(nextDocument);
         }
@@ -375,7 +273,15 @@ export function PaperViewer({
       controller.abort();
       if (loadController.current === controller) loadController.current = null;
     };
-  }, [nativeReaderAvailable, paper, readerTopPadding, sourceUri, t]);
+  }, [
+    dockHidden,
+    nativeReaderAvailable,
+    paper,
+    readerTopPadding,
+    readingProgress,
+    sourceUri,
+    t,
+  ]);
 
   useEffect(load, [load]);
 
@@ -392,34 +298,33 @@ export function PaperViewer({
     ({ viewableItems }: { viewableItems: ViewToken<PaperBlock>[] }) => {
       const currentDocument = documentRef.current;
       if (!currentDocument) return;
-      const orderedItems = viewableItems
-        .filter(
-          (item): item is ViewToken<PaperBlock> & { index: number } =>
-            item.index !== null,
-        )
-        .sort((a, b) => a.index - b.index);
-      if (orderedItems.length === 0) return;
-      const indexes = orderedItems
-        .map((item) =>
-          currentDocument.blocks.findIndex(
-            (block) => block.id === item.item.id,
-          ),
-        )
-        .filter((index) => index >= 0);
+      const indexes = viewableItems
+        .map((item) => blockIndexRef.current.get(item.item.id))
+        .filter((index): index is number => index !== undefined);
       if (indexes.length === 0) return;
-      const first = Math.max(0, Math.min(...indexes) - 1);
       const visibleFirst = Math.min(...indexes);
+      const first = Math.max(0, visibleFirst - 1);
       const last = Math.min(
         currentDocument.blocks.length - 1,
-        Math.max(...indexes, 0) + 3,
+        Math.max(...indexes) + 3,
       );
       const ids = currentDocument.blocks
         .slice(first, last + 1)
         .map((block) => block.id);
       visibleIds.current = ids;
-      const blockId = currentDocument.blocks[visibleFirst]?.id ?? null;
-      firstVisibleId.current = blockId;
-      setVisibleBlockId(blockId);
+      const block = currentDocument.blocks[visibleFirst];
+      firstVisibleId.current = block?.id ?? null;
+      setVisibleSection(
+        block?.kind === "heading"
+          ? block.plainText
+          : (block?.sectionTitle ?? null),
+      );
+      readingProgress.value = withTiming(
+        currentDocument.blocks.length > 1
+          ? visibleFirst / (currentDocument.blocks.length - 1)
+          : 1,
+        { duration: motion.baseMs },
+      );
       void enqueueRef.current(ids);
     },
   ).current;
@@ -447,36 +352,59 @@ export function PaperViewer({
     setShowPaperHeader(true);
   }, [showPaperHeader]);
 
-  const scrollToDocumentIndex = useCallback(
+  /**
+   * Start the list at a block, the same way a saved position is restored.
+   * Cells have dynamic Markdown heights, so a scroll offset for an unmeasured
+   * block can only be a guess. Starting from the block itself is always exact.
+   */
+  const jumpToBlock = useCallback(
     (index: number) => {
-      const startIndex = renderStartIndexRef.current;
-      if (index >= startIndex) {
-        list.current?.scrollToIndex({
-          index: index - startIndex,
-          animated: true,
-          viewPosition: 0.08,
-        });
-        return;
-      }
-      pendingNavigationIndex.current = index;
-      revealWholeDocument();
+      const block = documentRef.current?.blocks[index];
+      if (!block) return;
+      const atStart = index === 0;
+      const offset = atStart ? 0 : readerTopPadding;
+      renderStartIndexRef.current = index;
+      expectedInitialOffset.current = offset;
+      firstVisibleId.current = block.id;
+      readerPositionReady.current = true;
+      dragStartY.current = null;
+      dockTarget.current = 0;
+      dockHidden.value = 0;
+      setRenderStartIndex(index);
+      setShowPaperHeader(atStart);
+      setInitialContentOffset(atStart ? null : offset);
+      setListKey((key) => key + 1);
     },
-    [revealWholeDocument],
+    [dockHidden, readerTopPadding],
   );
 
-  useEffect(() => {
-    const index = pendingNavigationIndex.current;
-    if (index === null || renderStartIndex !== 0 || !showPaperHeader) return;
-    pendingNavigationIndex.current = null;
-    const frame = requestAnimationFrame(() => {
+  const scrollToDocumentIndex = useCallback(
+    (index: number) => {
+      const renderedIndex = index - renderStartIndexRef.current;
+      // A block before the list's start cannot be scrolled to at all.
+      if (renderedIndex < 0) {
+        jumpToBlock(index);
+        return;
+      }
+      // Nearby blocks are already measured, so this one animates. Anything else
+      // lands in onScrollToIndexFailed and jumps instead.
       list.current?.scrollToIndex({
-        index,
+        index: renderedIndex,
         animated: true,
-        viewPosition: 0.08,
+        // Land the target directly below the floating bar.
+        viewOffset: readerTopPadding + 4,
+        viewPosition: 0,
       });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [renderStartIndex, showPaperHeader]);
+    },
+    [jumpToBlock, readerTopPadding],
+  );
+
+  const onScrollToIndexFailed = useCallback(
+    ({ index }: { index: number }) => {
+      jumpToBlock(index + renderStartIndexRef.current);
+    },
+    [jumpToBlock],
+  );
 
   const closeViewer = useCallback(() => {
     persistReaderPosition();
@@ -484,14 +412,23 @@ export function PaperViewer({
     onClose();
   }, [onClose, persistReaderPosition]);
 
+  // An Android Modal is its own window: the hardware back key reaches only this
+  // handler, never BackHandler. Layers inside the modal must be closed from here
+  // or back would dismiss the entire reader.
+  const handleRequestClose = useCallback(() => {
+    if (askOpen) setAskOpen(false);
+    else closeViewer();
+  }, [askOpen, closeViewer]);
+
+  const setAskSelection = ask.setSelection;
   const openAsk = useCallback(
     (selection?: AskSelection) => {
       // The toolbar entry intentionally asks about the current viewport. Only
       // the native selection action should retain an explicit quoted passage.
-      ask.setSelection(selection ?? null);
+      setAskSelection(selection ?? null);
       setAskOpen(true);
     },
-    [ask],
+    [setAskSelection],
   );
 
   const openLink = useCallback(
@@ -505,309 +442,436 @@ export function PaperViewer({
         }
         return;
       }
-      if (/^https?:/i.test(url)) {
-        void Linking.openURL(url).catch(() => undefined);
-      }
+      if (/^https?:/i.test(url)) openWebLink(url);
     },
     [anchorIndex, scrollToDocumentIndex],
   );
 
-  const changeMode = useCallback(async () => {
-    if (mode === "source") {
-      if (!providerProfile) {
-        showDialog({
-          title: t("translation.setupTitle"),
-          message: t("translation.setupBody"),
-          actions: [
-            { text: t("common.cancel"), style: "cancel" },
-            { text: t("common.settings"), onPress: onOpenSettings },
-          ],
-        });
-        return;
-      }
-      let hasKey = providerProfile.kind === "google";
-      if (!hasKey) {
-        try {
-          hasKey = Boolean(await getProviderApiKey(providerProfile.id));
-        } catch {
-          hasKey = false;
+  const showTranslationSetup = useCallback(() => {
+    showDialog({
+      title: t("translation.setupTitle"),
+      message: t("translation.setupBody"),
+      actions: [
+        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.settings"), onPress: onOpenSettings },
+      ],
+    });
+  }, [onOpenSettings, showDialog, t]);
+
+  const changeMode = useCallback(
+    async (next: ReaderMode) => {
+      if (next !== "source" && mode === "source") {
+        if (!providerProfile) {
+          showTranslationSetup();
+          return;
+        }
+        let hasKey = providerProfile.kind === "google";
+        if (!hasKey) {
+          try {
+            hasKey = Boolean(await getProviderApiKey(providerProfile.id));
+          } catch {
+            hasKey = false;
+          }
+        }
+        if (!hasKey) {
+          showTranslationSetup();
+          return;
         }
       }
-      if (!hasKey) {
-        showDialog({
-          title: t("translation.setupTitle"),
-          message: t("translation.setupBody"),
-          actions: [
-            { text: t("common.cancel"), style: "cancel" },
-            { text: t("common.settings"), onPress: onOpenSettings },
-          ],
-        });
-        return;
-      }
-      setMode("dual");
-    } else if (mode === "dual") {
-      setMode("translation");
-    } else {
-      setMode("source");
-    }
-  }, [getProviderApiKey, mode, onOpenSettings, providerProfile, showDialog, t]);
+      setMode(next);
+    },
+    [getProviderApiKey, mode, providerProfile, showTranslationSetup],
+  );
+
+  const modeOptions = useMemo(
+    () =>
+      [
+        { id: "source", label: t("common.original") },
+        { id: "dual", label: t("translation.dual") },
+        { id: "translation", label: t("translation.translationOnly") },
+      ] as const,
+    [t],
+  );
 
   const askAvailable = askEnabled && Platform.OS === "android";
+  const arxivId = paper?.arxivId ?? "";
+  const translations = translation.translations;
   const renderBlock = useCallback(
     ({ item }: ListRenderItemInfo<PaperBlock>) => (
       <ReaderBlock
         block={item}
         mode={mode}
-        translation={translation.translations[item.id]}
+        translation={translations[item.id]}
         onLinkPress={openLink}
         askEnabled={askAvailable}
-        arxivId={paper?.arxivId ?? ""}
+        arxivId={arxivId}
         onAsk={openAsk}
+        onOpenFigure={setFigure}
       />
     ),
-    [
-      askAvailable,
-      mode,
-      openAsk,
-      openLink,
-      paper?.arxivId,
-      translation.translations,
-    ],
+    [arxivId, askAvailable, mode, openAsk, openLink, translations],
   );
 
-  const modeLabel =
-    mode === "source"
-      ? t("common.translate")
-      : mode === "dual"
-        ? t("translation.translationOnly")
-        : t("common.original");
+  const setDockHidden = useCallback(
+    (hidden: boolean) => {
+      const next = hidden ? 1 : 0;
+      if (dockTarget.current === next) return;
+      dockTarget.current = next;
+      dockHidden.value = reduceMotion
+        ? next
+        : withTiming(next, {
+            duration: motion.fastMs,
+            easing: Easing.out(Easing.cubic),
+          });
+    },
+    [dockHidden, reduceMotion],
+  );
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } =
+        event.nativeEvent;
+      const offset = contentOffset.y;
+      if (
+        !readerPositionReady.current &&
+        Math.abs(offset - expectedInitialOffset.current) > 2
+      ) {
+        return;
+      }
+      readerPositionReady.current = true;
+
+      // Give the page back while reading forward, and return the controls on
+      // any move back up or on reaching the end of the paper.
+      const atEnd =
+        contentSize.height - layoutMeasurement.height - offset < DOCK_HEIGHT;
+      if (atEnd) {
+        setDockHidden(false);
+        return;
+      }
+      // Only finger travel counts. Measuring or inserting blocks above the
+      // viewport also shifts the offset, and that is not a scroll direction.
+      const dragStart = dragStartY.current;
+      if (dragStart === null) return;
+      const travel = offset - dragStart;
+      if (Math.abs(travel) < DOCK_SCROLL_THRESHOLD) return;
+      setDockHidden(travel > 0);
+    },
+    [setDockHidden],
+  );
+
+  const dockStyle = useAnimatedStyle(() => ({
+    opacity: 1 - dockHidden.value,
+    transform: [{ translateY: dockHidden.value * DOCK_HEIGHT * 0.7 }],
+  }));
+  const progressStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: (readingProgress.value - 1) * windowWidth }],
+  }));
+
+  const contentContainerStyle = useMemo(
+    () => ({
+      // A list started at a saved or jumped-to block opens scrolled down by one
+      // padding, so an upward drag can begin and reveal the earlier blocks. The
+      // extra padding keeps that first block below the bar instead of under it.
+      paddingTop: showPaperHeader ? readerTopPadding : readerTopPadding * 2,
+      paddingHorizontal: spacing.gutter,
+      paddingBottom: Math.max(insets.bottom, 16) + DOCK_HEIGHT,
+    }),
+    [insets.bottom, readerTopPadding, showPaperHeader],
+  );
+
+  const paperHeader = useMemo(
+    () =>
+      showPaperHeader && paper ? (
+        <PaperHeader
+          paper={paper}
+          mode={mode}
+          translation={translations[PAPER_TITLE_TRANSLATION_ID]}
+        />
+      ) : null,
+    [mode, paper, showPaperHeader, translations],
+  );
+
+  const contentOffset = useMemo(
+    () =>
+      initialContentOffset === null
+        ? undefined
+        : { x: 0, y: initialContentOffset },
+    [initialContentOffset],
+  );
+
+  const getVisibleBlockId = useCallback(() => firstVisibleId.current, []);
+  const closeAsk = useCallback(() => setAskOpen(false), []);
+  const closeToc = useCallback(() => setTocOpen(false), []);
+  const closeFigure = useCallback(() => setFigure(null), []);
+  const openAskSettings = useCallback(() => {
+    setAskOpen(false);
+    onOpenAskSettings();
+  }, [onOpenAskSettings]);
+  const navigateToSource = useCallback(
+    (blockId: string) => {
+      const index = blockIndexRef.current.get(blockId);
+      if (index === undefined) return;
+      setAskOpen(false);
+      scrollToDocumentIndex(index);
+    },
+    [scrollToDocumentIndex],
+  );
+  const selectHeading = useCallback(
+    (id: string) => {
+      const index = anchorIndex.get(id);
+      setTocOpen(false);
+      if (index !== undefined) scrollToDocumentIndex(index);
+    },
+    [anchorIndex, scrollToDocumentIndex],
+  );
+
+  const translating = mode !== "source";
+  const pending = translation.progress.pending;
 
   return (
     <Modal
       visible={paper != null}
       animationType="slide"
       presentationStyle="fullScreen"
-      onRequestClose={closeViewer}
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={handleRequestClose}
     >
       <View style={styles.root}>
         <StatusBar style="light" />
         <BlurTargetView ref={blurTarget} style={styles.root}>
           {nativeReaderAvailable && document && paper ? (
             <FlatList
+              key={listKey}
               ref={list}
               data={renderedBlocks}
-              keyExtractor={(block) => block.id}
+              keyExtractor={blockKey}
               renderItem={renderBlock}
-              contentOffset={
-                initialContentOffset === null
-                  ? undefined
-                  : { x: 0, y: initialContentOffset }
-              }
-              maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-              contentContainerStyle={{
-                paddingTop: readerTopPadding,
-                paddingHorizontal: 20,
-                paddingBottom: Math.max(insets.bottom, 16) + 40,
-              }}
-              ListHeaderComponent={
-                showPaperHeader ? (
-                  <PaperHeader
-                    paper={paper}
-                    mode={mode}
-                    translation={
-                      translation.translations[PAPER_TITLE_TRANSLATION_ID]
-                    }
-                  />
-                ) : null
-              }
+              contentOffset={contentOffset}
+              maintainVisibleContentPosition={MAINTAIN_POSITION}
+              contentContainerStyle={contentContainerStyle}
+              ListHeaderComponent={paperHeader ?? undefined}
               onViewableItemsChanged={onViewableItemsChanged}
               viewabilityConfig={viewabilityConfig}
               initialNumToRender={8}
               maxToRenderPerBatch={6}
               updateCellsBatchingPeriod={40}
               windowSize={7}
-              onScrollToIndexFailed={({ index, averageItemLength }) => {
-                list.current?.scrollToOffset({
-                  offset: Math.max(0, index * averageItemLength),
-                  animated: true,
-                });
-              }}
-              onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
-                const offset = event.nativeEvent.contentOffset.y;
-                if (
-                  !readerPositionReady.current &&
-                  Math.abs(offset - expectedInitialOffset.current) > 2
-                ) {
-                  return;
-                }
-                readerPositionReady.current = true;
-              }}
+              onScrollToIndexFailed={onScrollToIndexFailed}
+              onScroll={handleScroll}
               onScrollBeginDrag={(event) => {
                 readerPositionReady.current = true;
+                // The drag that reveals the earlier blocks shifts the offset
+                // by their whole height, so it says nothing about direction.
+                const revealing =
+                  renderStartIndexRef.current !== 0 || !showPaperHeader;
+                dragStartY.current = revealing
+                  ? null
+                  : event.nativeEvent.contentOffset.y;
                 revealWholeDocument();
               }}
               onMomentumScrollEnd={persistReaderPosition}
-              onScrollEndDrag={persistReaderPosition}
+              onScrollEndDrag={() => {
+                dragStartY.current = null;
+                persistReaderPosition();
+              }}
               scrollEventThrottle={100}
+              showsVerticalScrollIndicator={false}
             />
           ) : null}
 
           {!nativeReaderAvailable ? (
-            <MissingNativeReader onClose={closeViewer} />
+            <EmptyState
+              icon={TriangleAlert}
+              title={t("reader.devClientTitle")}
+              body={t("reader.devClientBody")}
+              style={styles.center}
+            >
+              <Button
+                variant="primary"
+                label={t("common.close")}
+                onPress={closeViewer}
+              />
+            </EmptyState>
           ) : null}
 
           {nativeReaderAvailable && loading ? (
             <View style={styles.center}>
-              <ActivityIndicator color={accent} size="large" />
+              <ActivityIndicator color={colors.accent} size="large" />
               <Text style={styles.loadingText}>{t("reader.loading")}</Text>
             </View>
           ) : null}
 
           {nativeReaderAvailable && !loading && loadError && paper ? (
-            <ReaderError
-              message={loadError}
-              onRetry={load}
-              onOpenPdf={() =>
-                void Linking.openURL(paper.pdfUrl).catch(() => undefined)
-              }
-              onOpenArxiv={() =>
-                void Linking.openURL(
-                  `https://arxiv.org/abs/${paper.arxivId}`,
-                ).catch(() => undefined)
-              }
-            />
+            <EmptyState
+              icon={TriangleAlert}
+              tone="danger"
+              title={t("reader.unavailable")}
+              body={loadError}
+              style={styles.center}
+            >
+              <Button
+                variant="primary"
+                icon={RefreshCw}
+                label={t("common.retry")}
+                onPress={() => void load()}
+              />
+              <Button
+                icon={FileText}
+                label={t("reader.openPdf")}
+                onPress={() => openWebLink(paper.pdfUrl)}
+              />
+              <Button
+                icon={ExternalLink}
+                label={t("reader.openArxiv")}
+                onPress={() =>
+                  openWebLink(`https://arxiv.org/abs/${paper.arxivId}`)
+                }
+              />
+            </EmptyState>
           ) : null}
 
-          <View style={[styles.bar, { paddingTop: Math.max(insets.top, 8) }]}>
-            <Pressable
-              accessibilityLabel={t("common.back")}
-              onPress={closeViewer}
-              hitSlop={10}
-              style={styles.iconButton}
-            >
-              <ArrowLeft color={colors.text} size={21} strokeWidth={1.9} />
-            </Pressable>
-            <View style={styles.statusBox}>
-              <Text style={styles.barTitle} numberOfLines={1}>
-                {paper ? `arXiv:${paper.arxivId}` : "Paprism"}
-              </Text>
-              {mode !== "source" ? (
-                <Text style={styles.statusText} numberOfLines={1}>
-                  {translation.progress.completed}/{translation.total || "—"}
-                  {translation.progress.pending
-                    ? ` · ${t("translation.pending", { count: translation.progress.pending })}`
-                    : ""}
+          <View pointerEvents="box-none" style={styles.barLayer}>
+            <View style={[styles.bar, { paddingTop: Math.max(insets.top, 8) }]}>
+              <IconButton
+                icon={ArrowLeft}
+                label={t("common.back")}
+                onPress={closeViewer}
+              />
+              <View style={styles.barCopy}>
+                <Text style={styles.barId} numberOfLines={1}>
+                  {paper ? `arXiv:${paper.arxivId}` : "Paprism"}
                 </Text>
-              ) : (
-                <Text style={styles.statusText} numberOfLines={1}>
-                  {providerProfile?.name ?? t("provider.noModel")}
+                <Text style={styles.barSection} numberOfLines={1}>
+                  {visibleSection ?? paper?.title ?? ""}
                 </Text>
-              )}
-              {translation.error ? (
-                <Pressable onPress={translation.retryFailed} hitSlop={8}>
-                  <Text style={styles.errorText} numberOfLines={1}>
-                    {translation.error} · {t("translation.retryFailed")}
-                  </Text>
-                </Pressable>
-              ) : translation.progress.pending > 0 ? (
-                <Pressable onPress={translation.cancel} hitSlop={8}>
-                  <Text style={styles.cancelText}>{t("common.cancel")}</Text>
-                </Pressable>
-              ) : null}
-            </View>
-            <View style={styles.actions}>
+              </View>
               {askAvailable && nativeReaderAvailable ? (
-                <Pressable
-                  accessibilityLabel="Ask"
+                <IconButton
+                  icon={MessageCircleQuestion}
+                  color={colors.accent}
+                  label={t("menu.ask")}
                   onPress={() => openAsk()}
-                  hitSlop={8}
-                  style={styles.iconButton}
-                >
-                  <MessageCircleQuestion
-                    color={accent}
-                    size={20}
-                    strokeWidth={1.8}
-                  />
-                </Pressable>
+                />
               ) : null}
               {headings.length > 0 ? (
-                <Pressable
-                  accessibilityLabel={t("reader.contents")}
+                <IconButton
+                  icon={ListTree}
+                  color={colors.textSecondary}
+                  label={t("reader.contents")}
                   onPress={() => setTocOpen(true)}
-                  hitSlop={8}
-                  style={styles.iconButton}
-                >
-                  <ListTree
-                    color={colors.textSecondary}
-                    size={20}
-                    strokeWidth={1.8}
-                  />
-                </Pressable>
-              ) : null}
-              {nativeReaderAvailable ? (
-                <Pressable
-                  accessibilityLabel={modeLabel}
-                  onPress={() => void changeMode()}
-                  hitSlop={10}
-                  style={styles.modeButton}
-                >
-                  <Languages color={accent} size={16} strokeWidth={1.9} />
-                  <Text style={styles.chipText}>{modeLabel}</Text>
-                </Pressable>
+                />
               ) : null}
             </View>
+            {document ? (
+              <View style={styles.progressTrack}>
+                <Animated.View style={[styles.progressFill, progressStyle]} />
+              </View>
+            ) : null}
+            <GradientFade height={BAR_FADE_HEIGHT} />
           </View>
+
+          {nativeReaderAvailable && document ? (
+            <Animated.View
+              pointerEvents="box-none"
+              style={[styles.dock, dockStyle]}
+            >
+              <GradientFade
+                direction="up"
+                height={DOCK_HEIGHT + Math.max(insets.bottom, 10)}
+                style={styles.dockFade}
+              />
+              <View
+                pointerEvents="box-none"
+                style={[
+                  styles.dockContent,
+                  { paddingBottom: Math.max(insets.bottom, 10) + 8 },
+                ]}
+              >
+                {translating && translation.error ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={translation.retryFailed}
+                    style={styles.statusPill}
+                  >
+                    <Text style={styles.statusError} numberOfLines={1}>
+                      {translation.error} · {t("translation.retryFailed")}
+                    </Text>
+                  </Pressable>
+                ) : translating && pending > 0 ? (
+                  <View style={styles.statusPill}>
+                    <ActivityIndicator color={colors.accent} size={12} />
+                    <Text style={styles.statusText} numberOfLines={1}>
+                      {translation.progress.completed}/
+                      {translation.total || "—"}
+                      {providerProfile ? ` · ${providerProfile.name}` : ""}
+                    </Text>
+                    <IconButton
+                      plain
+                      icon={X}
+                      iconSize={13}
+                      color={colors.muted}
+                      label={t("common.cancel")}
+                      onPress={translation.cancel}
+                      size={22}
+                    />
+                  </View>
+                ) : null}
+                <Segmented
+                  options={modeOptions}
+                  value={mode}
+                  onChange={(next) => void changeMode(next)}
+                  style={styles.modeControl}
+                />
+              </View>
+            </Animated.View>
+          ) : null}
 
           <ContentsSheet
             visible={tocOpen}
             headings={headings}
-            onClose={() => setTocOpen(false)}
-            onSelect={(id) => {
-              const index = anchorIndex.get(id);
-              setTocOpen(false);
-              if (index !== undefined) {
-                scrollToDocumentIndex(index);
-              }
-            }}
+            activeSection={visibleSection}
+            onClose={closeToc}
+            onSelect={selectHeading}
           />
+          <FigureViewer asset={figure} onClose={closeFigure} />
         </BlurTargetView>
         <AskSheet
           visible={askOpen}
           conversation={ask}
           chatProfile={askProviderProfile}
-          visibleBlockId={visibleBlockId}
-          onClose={() => setAskOpen(false)}
-          onNavigateToSource={(blockId) => {
-            const index = document?.blocks.findIndex(
-              (block) => block.id === blockId,
-            );
-            if (index === undefined || index < 0) return;
-            setAskOpen(false);
-            scrollToDocumentIndex(index);
-          }}
-          onOpenSettings={() => {
-            setAskOpen(false);
-            onOpenAskSettings();
-          }}
+          getVisibleBlockId={getVisibleBlockId}
+          onClose={closeAsk}
+          onNavigateToSource={navigateToSource}
+          onOpenSettings={openAskSettings}
           blurTarget={blurTarget}
         />
       </View>
     </Modal>
   );
-}
+});
 
-function PaperHeader({
+const MAINTAIN_POSITION = { minIndexForVisible: 0 };
+
+const PaperHeader = memo(function PaperHeader({
   paper,
   mode,
   translation,
 }: {
   paper: Paper;
-  mode: Mode;
+  mode: ReaderMode;
   translation?: string;
 }) {
+  const { t, i18n } = useTranslation();
+  const date = formatPaperDate(paper.published, i18n.language);
+  const categories = paper.categories.slice(0, 4).join(" · ");
   return (
     <View style={styles.paperHeader}>
-      <Text style={styles.paperId}>arXiv:{paper.arxivId}</Text>
+      {date ? <Text style={styles.paperDate}>{date}</Text> : null}
+      {categories ? (
+        <Text style={styles.paperCategories}>{categories}</Text>
+      ) : null}
       <Text selectable style={styles.paperTitle}>
         {mode === "translation" && translation ? translation : paper.title}
       </Text>
@@ -819,318 +883,67 @@ function PaperHeader({
       <Text selectable style={styles.authors}>
         {paper.authors.join(" · ")}
       </Text>
-    </View>
-  );
-}
-
-function ReaderBlock({
-  block,
-  mode,
-  translation,
-  onLinkPress,
-  askEnabled,
-  arxivId,
-  onAsk,
-}: {
-  block: PaperBlock;
-  mode: Mode;
-  translation?: string;
-  onLinkPress: (event: { url: string }) => void;
-  askEnabled: boolean;
-  arxivId: string;
-  onAsk: (selection: AskSelection) => void;
-}) {
-  const showSource =
-    mode !== "translation" || !block.translationSource || !translation;
-  const showTranslation = mode !== "source" && !!translation;
-  return (
-    <View style={styles.block}>
-      {block.assets?.map((asset, index) => (
-        <PaperImage key={`${asset.uri}-${index}`} asset={asset} />
-      ))}
-      {showSource && block.markdown ? (
-        <PaperMarkdown
-          markdown={block.markdown}
-          onLinkPress={onLinkPress}
-          askEnabled={askEnabled}
-          onAsk={(text) =>
-            onAsk({
-              arxivId,
-              blockId: block.id,
-              text,
-              sourceText: block.plainText,
-              sectionTitle: block.sectionTitle,
-              language: "source",
-            })
-          }
+      <View style={styles.paperLinks}>
+        <Button
+          size="small"
+          icon={FileText}
+          label="PDF"
+          accessibilityLabel={t("reader.openPdf")}
+          onPress={() => openWebLink(paper.pdfUrl)}
         />
-      ) : null}
-      {showTranslation ? (
-        <View
-          style={mode === "dual" ? styles.translation : styles.translationOnly}
-        >
-          <PaperMarkdown
-            markdown={translation}
-            onLinkPress={onLinkPress}
-            translated
-            compactHeading={mode === "dual"}
-            askEnabled={askEnabled}
-            onAsk={(text) =>
-              onAsk({
-                arxivId,
-                blockId: block.id,
-                text,
-                sourceText: block.plainText,
-                sectionTitle: block.sectionTitle,
-                language: "translation",
-              })
-            }
-          />
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function PaperMarkdown({
-  markdown,
-  translated = false,
-  compactHeading = false,
-  onLinkPress,
-  askEnabled = false,
-  onAsk,
-}: {
-  markdown: string;
-  translated?: boolean;
-  compactHeading?: boolean;
-  onLinkPress: (event: { url: string }) => void;
-  askEnabled?: boolean;
-  onAsk?: (text: string) => void;
-}) {
-  return (
-    <EnrichedMarkdownText
-      markdown={markdown}
-      markdownStyle={
-        translated
-          ? compactHeading
-            ? DUAL_TRANSLATION_STYLE
-            : TRANSLATION_STYLE
-          : MARKDOWN_STYLE
-      }
-      onLinkPress={onLinkPress}
-      selectable
-      flavor="github"
-      md4cFlags={{ latexMath: true, superscript: true, subscript: true }}
-      textBreakStrategy="highQuality"
-      maxFontSizeMultiplier={1.8}
-      selectionColor="rgba(139,92,246,0.28)"
-      selectionHandleColor="#7c3aed"
-      contextMenuItems={
-        askEnabled && onAsk
-          ? [
-              {
-                text: "Ask",
-                icon: "auto_awesome",
-                onPress: ({ text }) => onAsk(text),
-              },
-            ]
-          : undefined
-      }
-    />
-  );
-}
-
-function PaperImage({ asset }: { asset: PaperAsset }) {
-  const aspectRatio = asset.aspectRatio ?? 4 / 3;
-  if (/\.svg(?:$|[?#])/i.test(asset.uri)) {
-    return (
-      <View
-        accessibilityLabel={asset.alt}
-        style={[styles.figure, { aspectRatio }]}
-      >
-        <SvgUri
-          uri={asset.uri}
-          width="100%"
-          height="100%"
-          onError={ignoreImageError}
-          fallback={<Text style={styles.figureFallback}>{asset.alt}</Text>}
+        <Button
+          size="small"
+          icon={ExternalLink}
+          label="arXiv"
+          accessibilityLabel={t("reader.openArxiv")}
+          onPress={() => openWebLink(`https://arxiv.org/abs/${paper.arxivId}`)}
         />
       </View>
-    );
-  }
-  return (
-    <Image
-      source={{ uri: asset.uri }}
-      accessibilityLabel={asset.alt}
-      resizeMode="contain"
-      style={[styles.figure, { aspectRatio }]}
-    />
-  );
-}
-
-function MissingNativeReader({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <View style={styles.center}>
-      <Text style={styles.errorTitle}>{t("reader.devClientTitle")}</Text>
-      <Text style={styles.errorBody}>{t("reader.devClientBody")}</Text>
-      <View style={styles.errorActions}>
-        <Pressable style={styles.primaryButton} onPress={onClose}>
-          <Text style={styles.primaryButtonText}>{t("common.close")}</Text>
-        </Pressable>
-      </View>
     </View>
   );
-}
-
-function ReaderError({
-  message,
-  onRetry,
-  onOpenPdf,
-  onOpenArxiv,
-}: {
-  message: string;
-  onRetry: () => void;
-  onOpenPdf: () => void;
-  onOpenArxiv: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <View style={styles.center}>
-      <Text style={styles.errorTitle}>{t("reader.unavailable")}</Text>
-      <Text style={styles.errorBody}>{message}</Text>
-      <View style={styles.errorActions}>
-        <Pressable style={styles.primaryButton} onPress={onRetry}>
-          <Text style={styles.primaryButtonText}>{t("common.retry")}</Text>
-        </Pressable>
-        <Pressable style={styles.secondaryButton} onPress={onOpenPdf}>
-          <Text style={styles.secondaryButtonText}>{t("reader.openPdf")}</Text>
-        </Pressable>
-        <Pressable style={styles.secondaryButton} onPress={onOpenArxiv}>
-          <Text style={styles.secondaryButtonText}>
-            {t("reader.openArxiv")}
-          </Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-function ContentsSheet({
-  visible,
-  headings,
-  onClose,
-  onSelect,
-}: {
-  visible: boolean;
-  headings: PaperBlock[];
-  onClose: () => void;
-  onSelect: (id: string) => void;
-}) {
-  const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.sheetBackdrop} onPress={onClose}>
-        <Pressable
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}
-          onPress={(event) => event.stopPropagation()}
-        >
-          <View style={styles.sheetHandle} />
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>{t("reader.contents")}</Text>
-            <Pressable
-              accessibilityLabel={t("common.close")}
-              hitSlop={10}
-              onPress={onClose}
-              style={styles.sheetClose}
-            >
-              <X color={colors.muted} size={20} strokeWidth={1.8} />
-            </Pressable>
-          </View>
-          <FlatList
-            data={headings}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <Pressable
-                style={styles.tocRow}
-                onPress={() => onSelect(item.id)}
-              >
-                <Text style={styles.tocText}>{item.plainText}</Text>
-              </Pressable>
-            )}
-          />
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  bar: {
+  barLayer: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     zIndex: 10,
+  },
+  bar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
+    gap: 8,
+    paddingHorizontal: spacing.gutter - 6,
     paddingBottom: 8,
-    backgroundColor: "rgba(9,9,11,0.96)",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
-  actions: { flexDirection: "row", gap: 5 },
-  iconButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.medium,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  modeButton: {
-    minHeight: 40,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    borderRadius: radii.medium,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  chipText: { color: colors.textSecondary, fontSize: 12, fontWeight: "600" },
-  statusBox: {
+  barCopy: {
     flex: 1,
-    paddingHorizontal: 6,
     minWidth: 0,
+    paddingHorizontal: 4,
   },
-  barTitle: { color: colors.text, fontSize: 12, fontWeight: "700" },
-  statusText: { color: colors.dim, fontSize: 10, marginTop: 2 },
-  errorText: {
-    color: colors.danger,
-    fontSize: 10,
-    fontWeight: "600",
-    marginTop: 2,
+  barId: {
+    ...typography.micro,
+    ...typography.numeric,
+    color: colors.dim,
   },
-  cancelText: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: "600",
-    marginTop: 2,
+  barSection: {
+    ...typography.label,
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  progressTrack: {
+    height: StyleSheet.hairlineWidth * 2,
+    overflow: "hidden",
+    backgroundColor: colors.border,
+  },
+  progressFill: {
+    flex: 1,
+    backgroundColor: colors.accent,
   },
   center: {
     ...StyleSheet.absoluteFill,
@@ -1139,133 +952,86 @@ const styles = StyleSheet.create({
     padding: 28,
     backgroundColor: colors.background,
   },
-  loadingText: { color: colors.muted, fontSize: 14, marginTop: 12 },
+  loadingText: { ...typography.body, color: colors.muted, marginTop: 14 },
   paperHeader: {
-    paddingBottom: 20,
+    paddingBottom: 22,
+    marginBottom: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderStrong,
-    marginBottom: 12,
   },
-  paperId: {
-    color: accent,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.4,
-    marginBottom: 8,
+  paperDate: {
+    ...typography.caption,
+    color: colors.dim,
+    marginBottom: 6,
+  },
+  paperCategories: {
+    ...typography.caption,
+    color: colors.muted,
+    marginBottom: 14,
   },
   paperTitle: {
+    ...typography.display,
+    fontSize: 28,
+    lineHeight: 35,
     color: colors.text,
-    fontSize: 30,
-    lineHeight: 37,
-    fontWeight: "800",
   },
   translatedPaperTitle: {
-    color: translatedText,
-    fontSize: 24,
-    lineHeight: 31,
-    fontWeight: "700",
+    ...typography.headline,
+    fontSize: 22,
+    lineHeight: 29,
+    color: colors.translated,
     marginTop: 10,
   },
-  authors: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 10 },
-  block: { marginBottom: 6 },
-  translation: {
-    borderLeftWidth: 3,
-    borderLeftColor: accentStrong,
-    paddingLeft: 12,
-    marginTop: 5,
-    marginBottom: 8,
-  },
-  translationOnly: { marginBottom: 8 },
-  figure: {
-    width: "100%",
-    // arXiv figures often use transparent backgrounds with black labels.
-    // Keep a paper-colored canvas so their original pixels stay readable.
-    backgroundColor: "#f4f4f5",
-    borderRadius: radii.small,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    marginVertical: 8,
-  },
-  figureFallback: { color: colors.muted, fontSize: 13, padding: 12 },
-  errorTitle: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  errorBody: {
+  authors: {
+    ...typography.body,
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 21,
-    textAlign: "center",
-    marginTop: 8,
+    marginTop: 12,
   },
-  errorActions: { marginTop: 20, gap: 8, width: "100%", maxWidth: 300 },
-  primaryButton: {
-    minHeight: 46,
-    backgroundColor: colors.text,
-    borderRadius: radii.medium,
+  paperLinks: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 16,
+  },
+  dock: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+  },
+  dockFade: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  dockContent: {
     alignItems: "center",
-    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: spacing.gutter,
   },
-  primaryButtonText: { color: colors.inverse, fontSize: 14, fontWeight: "700" },
-  secondaryButton: {
-    minHeight: 46,
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radii.medium,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  secondaryButtonText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  sheetBackdrop: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.62)",
-  },
-  sheet: {
-    maxHeight: "76%",
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
-    paddingTop: 8,
-  },
-  sheetHandle: {
+  modeControl: {
     alignSelf: "center",
-    width: 38,
-    height: 4,
-    marginBottom: 8,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surfacePressed,
+    width: "100%",
+    maxWidth: 300,
   },
-  sheetHeader: {
-    minHeight: 48,
+  statusPill: {
+    maxWidth: "100%",
+    minHeight: 30,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-  },
-  sheetTitle: { color: colors.text, fontSize: 20, fontWeight: "800" },
-  sheetClose: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.medium,
+    gap: 7,
+    paddingHorizontal: 12,
+    borderRadius: 15,
     backgroundColor: colors.surfaceRaised,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
-  tocRow: {
-    paddingHorizontal: 20,
-    paddingVertical: 13,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+  statusText: {
+    ...typography.micro,
+    ...typography.numeric,
+    flexShrink: 1,
+    color: colors.textSecondary,
   },
-  tocText: { color: colors.textSecondary, fontSize: 15, lineHeight: 21 },
+  statusError: { ...typography.micro, flexShrink: 1, color: colors.danger },
 });

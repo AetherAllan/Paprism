@@ -3,6 +3,7 @@ import { ARXIV_PAGE_SIZE } from "@/lib/arxiv";
 import {
   nearestPage,
   pageDirectionForGesture,
+  pageDragOffset,
   shouldPrefetch,
 } from "./feedPaging";
 
@@ -80,6 +81,59 @@ describe("feed paging", () => {
         startedAtBottom: true,
       }),
     ).toBe(-1);
+  });
+
+  test("a fast flick commits the page before the distance threshold", () => {
+    const flick = {
+      dx: 0,
+      dy: -20,
+      startedAtTop: false,
+      startedAtBottom: true,
+    };
+    expect(pageDirectionForGesture(flick)).toBe(0);
+    expect(pageDirectionForGesture({ ...flick, velocityY: -900 })).toBe(1);
+    // Releasing against the drag means the user changed their mind.
+    expect(pageDirectionForGesture({ ...flick, velocityY: 900 })).toBe(0);
+    // A tiny tremor with high velocity is not an intentional flick.
+    expect(pageDirectionForGesture({ ...flick, dy: -6, velocityY: -900 })).toBe(
+      0,
+    );
+  });
+
+  test("drag offset follows the finger for at most one page", () => {
+    const drag = {
+      startOffset: 100,
+      pageHeight: 100,
+      itemCount: 5,
+    };
+    expect(pageDragOffset({ ...drag, travelY: -40, direction: 1 })).toBe(140);
+    expect(pageDragOffset({ ...drag, travelY: 40, direction: -1 })).toBe(60);
+    expect(pageDragOffset({ ...drag, travelY: -900, direction: 1 })).toBe(200);
+    expect(pageDragOffset({ ...drag, travelY: 900, direction: -1 })).toBe(0);
+    // Moving against the locked direction never pulls the page the other way.
+    expect(pageDragOffset({ ...drag, travelY: 40, direction: 1 })).toBe(100);
+  });
+
+  test("drag offset resists past both ends of the feed", () => {
+    const first = pageDragOffset({
+      startOffset: 0,
+      travelY: 100,
+      direction: -1,
+      pageHeight: 100,
+      itemCount: 5,
+    });
+    expect(first).toBeLessThan(0);
+    expect(first).toBeGreaterThan(-100);
+
+    const last = pageDragOffset({
+      startOffset: 400,
+      travelY: -100,
+      direction: 1,
+      pageHeight: 100,
+      itemCount: 5,
+    });
+    expect(last).toBeGreaterThan(400);
+    expect(last).toBeLessThan(500);
   });
 
   test("normalizes offsets to the nearest valid page", () => {

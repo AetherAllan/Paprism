@@ -123,6 +123,15 @@ export function usePaperSearch(categories: string[]) {
     [],
   );
 
+  // The scope control sits directly above the results. Changing it must change
+  // them, rather than leave stale results under a newly selected scope.
+  const submitRef = useRef(submit);
+  submitRef.current = submit;
+  useEffect(() => {
+    const current = active.current;
+    if (current && current.scope !== scope) submitRef.current();
+  }, [scope]);
+
   const loadMore = useCallback(
     (retry = false) => {
       const current = active.current;

@@ -2,6 +2,14 @@ export type DownloadTask =
   | { kind: "reader"; arxivId: string; controller: AbortController }
   | { kind: "pdf"; arxivId: string };
 
+/** Thrown when a download starts while another is running; has its own UI copy. */
+export class DownloadBusyError extends Error {
+  override name = "DownloadBusyError";
+  constructor() {
+    super("Another download is already running");
+  }
+}
+
 export function createDownloadTaskSlot(
   commit: (task: DownloadTask | null) => void,
 ) {
@@ -9,7 +17,7 @@ export function createDownloadTaskSlot(
   return {
     current: () => current,
     begin(task: DownloadTask) {
-      if (current) throw new Error("Another download is already running");
+      if (current) throw new DownloadBusyError();
       current = task;
       commit(task);
     },

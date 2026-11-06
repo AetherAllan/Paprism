@@ -1,8 +1,10 @@
-import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { StyleSheet, Switch, Text, View } from "react-native";
+import Trash2 from "lucide-react-native/icons/trash-2";
 import { useTranslation } from "react-i18next";
 import { ProviderSettings } from "@/features/settings/ProviderSettings";
 import type { useProviderProfiles } from "@/features/settings/useProviderProfiles";
-import { colors, radii } from "@/shared/theme";
+import { colors, surfaces, typography } from "@/shared/theme";
+import { Button } from "@/shared/ui/Button";
 import { clearAllAskData } from "./askDatabase";
 import { fetchEmbeddingModels } from "./embeddingProviders";
 import type { useEmbeddingProfile } from "./useEmbeddingProfile";
@@ -26,7 +28,7 @@ export function AskSettings({
 
   return (
     <View>
-      <View style={styles.toggleRow}>
+      <View style={[surfaces.card, styles.toggleRow]}>
         <View style={styles.toggleCopy}>
           <Text style={styles.title}>{t("ask.enabled")}</Text>
           <Text style={styles.hint}>{t("ask.enabledHint")}</Text>
@@ -34,12 +36,12 @@ export function AskSettings({
         <Switch
           value={enabled}
           onValueChange={onEnabledChange}
-          thumbColor={enabled ? colors.text : colors.muted}
+          thumbColor={enabled ? colors.accent : colors.muted}
           trackColor={{
-            true: colors.surfacePressed,
-            false: colors.surfaceRaised,
+            true: colors.accentBorder,
+            false: colors.surfacePressed,
           }}
-          ios_backgroundColor={colors.surfaceRaised}
+          ios_backgroundColor={colors.surfacePressed}
         />
       </View>
 
@@ -61,7 +63,10 @@ export function AskSettings({
       />
 
       <Text style={styles.privacy}>{t("ask.privacy")}</Text>
-      <Pressable
+      <Button
+        variant="danger"
+        icon={Trash2}
+        label={t("ask.clearAll")}
         style={styles.destructiveButton}
         onPress={() =>
           showDialog({
@@ -88,9 +93,7 @@ export function AskSettings({
             ],
           })
         }
-      >
-        <Text style={styles.destructiveText}>{t("ask.clearAll")}</Text>
-      </Pressable>
+      />
     </View>
   );
 }
@@ -99,27 +102,17 @@ const styles = StyleSheet.create({
   toggleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    marginTop: 4,
+    gap: 14,
+    padding: 15,
   },
   toggleCopy: { flex: 1 },
-  title: { color: colors.text, fontSize: 14, fontWeight: "700" },
-  hint: { color: colors.dim, fontSize: 12, lineHeight: 18, marginTop: 4 },
-  privacy: { color: colors.dim, fontSize: 12, lineHeight: 18, marginTop: 24 },
-  destructiveButton: {
-    minHeight: 48,
-    marginTop: 16,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.medium,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.danger,
-    backgroundColor: "rgba(248,113,113,0.12)",
+  title: { ...typography.label, color: colors.text },
+  hint: { ...typography.caption, color: colors.dim, marginTop: 3 },
+  privacy: {
+    ...typography.caption,
+    color: colors.dim,
+    marginTop: 24,
+    marginHorizontal: 4,
   },
-  destructiveText: {
-    color: colors.danger,
-    textAlign: "center",
-    fontWeight: "700",
-  },
+  destructiveButton: { marginTop: 14 },
 });

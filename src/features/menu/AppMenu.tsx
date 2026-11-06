@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { memo, useCallback, useEffect } from "react";
 import {
   BackHandler,
   Pressable,
@@ -21,7 +21,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors } from "@/shared/theme";
+import { colors, motion, radii } from "@/shared/theme";
 import type { AppSection } from "@/types/navigation";
 import { AppMenuContent } from "./AppMenuContent";
 import { drawerWidth, shouldCompleteSwipe } from "./navigationMotion";
@@ -34,14 +34,9 @@ type Props = {
   updateAvailable: boolean;
 };
 
-const DRAWER_SPRING = {
-  damping: 24,
-  stiffness: 260,
-  mass: 0.8,
-  overshootClamping: true,
-};
+const DRAWER_SPRING = motion.spring;
 
-export function AppMenu({
+export const AppMenu = memo(function AppMenu({
   visible,
   interactive,
   onSelect,
@@ -151,7 +146,7 @@ export function AppMenu({
     opacity: interpolate(
       translateX.value,
       [panelWidth, 0],
-      [0, 0.52],
+      [0, 0.62],
       Extrapolation.CLAMP,
     ),
   }));
@@ -183,7 +178,7 @@ export function AppMenu({
               styles.panel,
               {
                 width: panelWidth,
-                paddingTop: insets.top + 18,
+                paddingTop: Math.max(insets.top, 8) + 14,
                 paddingBottom: insets.bottom + 16,
               },
               panelStyle,
@@ -198,7 +193,7 @@ export function AppMenu({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   layer: {
@@ -224,7 +219,9 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.xlarge,
+    borderBottomLeftRadius: radii.xlarge,
     borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: colors.borderStrong,
+    borderLeftColor: colors.highlight,
   },
 });

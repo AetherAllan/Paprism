@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import {
   BackHandler,
   StyleSheet,
@@ -6,7 +6,9 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { useTranslation } from "react-i18next";
 import Animated, {
   Easing,
   cancelAnimation,
@@ -18,29 +20,28 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors } from "@/shared/theme";
+import { colors, motion, spacing, typography } from "@/shared/theme";
+import { IconButton } from "@/shared/ui/IconButton";
 import { EDGE_GESTURE_WIDTH, shouldCompleteSwipe } from "./navigationMotion";
 
 type Props = {
   visible: boolean;
   title: string;
-  children: React.ReactNode;
+  subtitle?: string;
+  headerRight?: ReactNode;
+  children: ReactNode;
   onBackComplete: () => void;
-};
-
-const PAGE_SPRING = {
-  damping: 24,
-  stiffness: 260,
-  mass: 0.8,
-  overshootClamping: true,
 };
 
 export function SectionFrame({
   visible,
   title,
+  subtitle,
+  headerRight,
   children,
   onBackComplete,
 }: Props) {
+  const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
@@ -56,12 +57,14 @@ export function SectionFrame({
     }
     translateX.value = reduceMotion
       ? 0
-      : withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
+      : withTiming(0, {
+          duration: motion.baseMs,
+          easing: Easing.out(Easing.cubic),
+        });
   }, [closing, reduceMotion, translateX, visible, width]);
 
-  const finishBack = useCallback(() => {
-    onBackComplete();
-  }, [onBackComplete]);
+  const onBackCompleteRef = useRef(onBackComplete);
+  onBackCompleteRef.current = onBackComplete;
 
   const requestBack = useCallback(() => {
     if (!visible || closing.value) return;
@@ -69,17 +72,23 @@ export function SectionFrame({
     cancelAnimation(translateX);
     if (reduceMotion) {
       translateX.value = width;
-      finishBack();
+      onBackCompleteRef.current();
       return;
     }
+    // New function per exit. This frame unmounts its gesture while hidden, so
+    // a stable callback would lose its Worklets remote-function entry and abort
+    // on the next exit. See the note in useSheetPresence.
+    const finish = () => onBackCompleteRef.current();
     translateX.value = withTiming(
       width,
-      { duration: 180, easing: Easing.out(Easing.cubic) },
+      { duration: motion.fastMs, easing: Easing.out(Easing.cubic) },
       (finished) => {
-        if (finished) runOnJS(finishBack)();
+        if (finished) runOnJS(finish)();
       },
     );
-  }, [closing, finishBack, reduceMotion, translateX, visible, width]);
+  }, [closing, reduceMotion, translateX, visible, width]);
+
+  const finishBack = () => onBackCompleteRef.current();
 
   useEffect(() => {
     if (!visible) return;
@@ -123,13 +132,13 @@ export function SectionFrame({
           );
         }
       } else {
-        translateX.value = reduceMotion ? 0 : withSpring(0, PAGE_SPRING);
+        translateX.value = reduceMotion ? 0 : withSpring(0, motion.spring);
       }
     })
     .onFinalize((_event, succeeded) => {
       // A system cancellation must not leave the page between two sections.
       if (!succeeded && !closing.value) {
-        translateX.value = reduceMotion ? 0 : withSpring(0, PAGE_SPRING);
+        translateX.value = reduceMotion ? 0 : withSpring(0, motion.spring);
       }
     });
 
@@ -147,15 +156,33 @@ export function SectionFrame({
         style={[styles.overlay, animatedStyle]}
       >
         <View
-          style={[
-            styles.root,
-            { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 12 },
-          ]}
+          style={[styles.root, { paddingTop: Math.max(insets.top, 8) + 2 }]}
         >
           <View style={styles.header}>
-            <Text style={styles.title}>{title}</Text>
+            <IconButton
+              icon={ArrowLeft}
+              label={t("common.back")}
+              onPress={requestBack}
+            />
+            <View style={styles.titleBox}>
+              <Text
+                accessibilityRole="header"
+                numberOfLines={1}
+                style={styles.title}
+              >
+                {title}
+              </Text>
+              {subtitle ? (
+                <Text numberOfLines={1} style={styles.subtitle}>
+                  {subtitle}
+                </Text>
+              ) : null}
+            </View>
+            {headerRight}
           </View>
-          <View style={styles.content}>{children}</View>
+          <View style={[styles.content, { paddingBottom: insets.bottom }]}>
+            {children}
+          </View>
         </View>
       </Animated.View>
     </GestureDetector>
@@ -175,11 +202,15 @@ const styles = StyleSheet.create({
   },
   root: { flex: 1 },
   header: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 8,
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: spacing.gutter - 4,
+    paddingBottom: 10,
   },
-  title: { color: colors.text, fontSize: 22, fontWeight: "700" },
+  titleBox: { flex: 1, gap: 1 },
+  title: { ...typography.headline, color: colors.text },
+  subtitle: { ...typography.caption, ...typography.numeric, color: colors.dim },
   content: { flex: 1 },
 });

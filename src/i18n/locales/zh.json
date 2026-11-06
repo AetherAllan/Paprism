@@ -6,12 +6,12 @@
     "settings": "设置",
     "change": "更换",
     "retry": "重试",
-    "back": "← 返回",
+    "back": "返回",
     "read": "阅读",
     "save": "收藏",
     "saved": "已收藏",
     "download": "下载",
-    "downloading": "…",
+    "downloading": "下载中",
     "downloaded": "已下载",
     "offlineRead": "离线阅读",
     "pdfSaved": "PDF 已保存",
@@ -28,7 +28,9 @@
     "loadingMore": "正在加载更多…",
     "retryMore": "重试加载",
     "endOfFeed": "已经看完了",
-    "closeMenu": "关闭菜单"
+    "closeMenu": "关闭菜单",
+    "delete": "删除",
+    "clearInput": "清除输入"
   },
   "recovery": {
     "title": "本地数据已降级恢复",
@@ -37,14 +39,18 @@
   "network": {
     "offlineTitle": "设备尚未联网",
     "offlineBody": "请打开 Wi-Fi 或移动网络，联网后再重试。",
-    "openWifi": "打开 Wi-Fi 设置"
+    "openWifi": "打开 Wi-Fi 设置",
+    "openDownloads": "查看已下载的论文"
   },
   "menu": {
     "title": "菜单",
     "search": "搜索",
     "translation": "翻译",
     "ask": "Ask",
-    "language": "语言"
+    "language": "语言",
+    "tagline": "滑动阅读论文",
+    "groupLibrary": "资料库",
+    "groupSettings": "设置"
   },
   "search": {
     "placeholder": "搜索标题、摘要或作者",
@@ -65,7 +71,9 @@
     "removeSelection": "移除 {{category}}",
     "noCommonPapers": "没有同时属于所选类别的论文",
     "noCommonPapersHint": "多类别使用严格交集。移除一个或多个类别可以扩大信息流范围。",
-    "changeSelection": "修改类别"
+    "changeSelection": "修改类别",
+    "feedEmpty": "这个类别暂时没有论文",
+    "feedEmptyHint": "换一个类别，或稍后再回来看看。"
   },
   "settings": {
     "title": "设置",
@@ -125,7 +133,7 @@
     "tabDownloads": "下载",
     "emptySaved": "收藏的论文会出现在这里。",
     "emptyHistory": "在信息流看过或主动打开过的论文会出现在这里。",
-    "emptyDownloads": "下载的 PDF 会出现在这里。",
+    "emptyDownloads": "下载的 PDF 和离线阅读包会出现在这里。",
     "clearHistory": "清空历史",
     "clearHistoryTitle": "清空浏览历史？",
     "clearHistoryBody": "将删除本机上的浏览记录。",
@@ -141,7 +149,9 @@
     "manage": "管理",
     "removeDownloads": "删除下载",
     "removeDownloadsBody": "将删除这篇论文的离线阅读包和本机 PDF。",
-    "openPdf": "打开 PDF"
+    "openPdf": "打开 PDF",
+    "count": "{{count}} 篇",
+    "downloadBusy": "正在下载另一篇论文，请等它完成后再试。"
   },
   "provider": {
     "title": "翻译服务",
@@ -177,7 +187,8 @@
     "keyMissing": "当前服务配置没有 API Key",
     "pending": "队列 {{count}}",
     "retryFailed": "点击重试",
-    "translationOnly": "仅译文"
+    "translationOnly": "仅译文",
+    "dual": "双语"
   },
   "ask": {
     "enabled": "启用 Paprism Ask",
@@ -210,7 +221,13 @@
       "searching": "搜索网页",
       "connecting": "等待模型响应",
       "answering": "生成回答"
-    }
+    },
+    "stop": "停止回答",
+    "send": "发送",
+    "removeQuote": "移除引用",
+    "suggestSummary": "用几句话总结这篇论文",
+    "suggestMethod": "它的核心方法是什么？",
+    "suggestLimits": "这项工作有哪些局限？"
   },
   "group": {
     "Browse": "浏览",
@@ -392,5 +409,9 @@
     "stat.ML": "机器学习",
     "stat.OT": "其他统计学",
     "stat.TH": "统计理论"
+  },
+  "feed": {
+    "previous": "上一篇",
+    "next": "下一篇"
   }
 }

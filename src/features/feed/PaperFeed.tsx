@@ -1,38 +1,47 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
   type LayoutChangeEvent,
+  type ListRenderItemInfo,
 } from "react-native";
 import * as IntentLauncher from "expo-intent-launcher";
+import CloudOff from "lucide-react-native/icons/cloud-off";
+import Download from "lucide-react-native/icons/download";
 import Menu from "lucide-react-native/icons/menu";
+import RefreshCw from "lucide-react-native/icons/refresh-cw";
 import Tags from "lucide-react-native/icons/tags";
 import WifiOff from "lucide-react-native/icons/wifi-off";
 import { useTranslation } from "react-i18next";
 import Animated, {
-  Easing,
   cancelAnimation,
-  runOnJS,
   scrollTo,
   useAnimatedReaction,
   useAnimatedRef,
   useReducedMotion,
   useSharedValue,
-  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { categoriesSummary } from "@/features/categories/categoryLabels";
-import { colors, radii } from "@/shared/theme";
+import { colors, spacing, typography } from "@/shared/theme";
+import { Button } from "@/shared/ui/Button";
+import { EmptyState } from "@/shared/ui/EmptyState";
+import { IconButton } from "@/shared/ui/IconButton";
+import { PressableScale } from "@/shared/ui/PressableScale";
 import type { Paper } from "@/types/paper";
+import { FeedRail } from "./FeedRail";
 import { LoadingScreen } from "./LoadingScreen";
 import { PaperCard } from "./PaperCard";
-import { nearestPage, type PageDirection } from "./feedPaging";
+import { movePagerTo, type FeedPager } from "./feedPager";
+import type { PageDirection } from "./feedPaging";
 import type { PaginationStatus } from "./usePaperFeed";
 
-const PAGE_ANIMATION_DURATION = 125;
+// Height the rail must stay clear of: the card's action row plus its margins.
+const RAIL_BOTTOM_CLEARANCE = 72;
 
 type Props = {
   papers: Paper[];
@@ -47,6 +56,7 @@ type Props = {
   categories: string[];
   onOpenCategories: () => void;
   onOpenMenu: () => void;
+  onOpenDownloads: () => void;
   updateAvailable: boolean;
   onRead: (paper: Paper) => void;
   isSaved: (arxivId: string) => boolean;
@@ -59,7 +69,7 @@ type Props = {
   onCancelDownload: () => void;
 };
 
-export function PaperFeed({
+export const PaperFeed = memo(function PaperFeed({
   papers,
   index,
   onIndexChange,
@@ -72,6 +82,7 @@ export function PaperFeed({
   categories,
   onOpenCategories,
   onOpenMenu,
+  onOpenDownloads,
   updateAvailable,
   onRead,
   isSaved,
@@ -89,27 +100,47 @@ export function PaperFeed({
   const [pageHeight, setPageHeight] = useState(0);
   const listRef = useAnimatedRef<FlatList<Paper>>();
   const listReady = useSharedValue(false);
-  const animatedOffset = useSharedValue(0);
-  const targetIndex = useRef(index);
+  const offset = useSharedValue(0);
+  const target = useSharedValue(index);
+  const count = useSharedValue(papers.length);
+  const height = useSharedValue(0);
+  const pager = useMemo<FeedPager>(
+    () => ({ offset, target, count, height }),
+    [count, height, offset, target],
+  );
   const feedKey = categories.slice().sort().join("|");
+  const snapped = useRef({ index: -1, height: 0, key: "" });
 
   useEffect(() => {
+    count.value = papers.length;
     if (papers.length === 0) listReady.value = false;
-  }, [listReady, papers.length]);
+  }, [count, listReady, papers.length]);
 
   useEffect(() => {
-    targetIndex.current = index;
+    height.value = pageHeight;
     if (pageHeight <= 0) return;
-    cancelAnimation(animatedOffset);
-    animatedOffset.value = index * pageHeight;
-  }, [animatedOffset, feedKey, index, pageHeight]);
+    // A settling gesture also changes `index`, and it already put the offset in
+    // the right place. Snap only for external changes such as restoring a saved
+    // position or switching categories, so the next drag is never interrupted.
+    const previous = snapped.current;
+    if (
+      previous.index === index &&
+      previous.height === pageHeight &&
+      previous.key === feedKey
+    ) {
+      return;
+    }
+    snapped.current = { index, height: pageHeight, key: feedKey };
+    cancelAnimation(offset);
+    target.value = index;
+    offset.value = index * pageHeight;
+  }, [feedKey, height, index, offset, pageHeight, target]);
 
   useAnimatedReaction(
-    () => animatedOffset.value,
-    (offset) => {
-      if (listReady.value) scrollTo(listRef, 0, offset, false);
+    () => offset.value,
+    (value) => {
+      if (listReady.value) scrollTo(listRef, 0, Math.max(0, value), false);
     },
-    [listReady, listRef],
   );
 
   const onListLayout = useCallback(
@@ -135,346 +166,275 @@ export function PaperFeed({
     [pageHeight],
   );
 
-  const finishPageAnimation = useCallback(
-    (offset: number) => {
-      const settled = nearestPage(offset, pageHeight, papers.length);
-      targetIndex.current = settled.index;
-      if (settled.index !== index) onIndexChange(settled.index);
+  const handleSettled = useCallback(
+    (settledIndex: number) => {
+      snapped.current = { ...snapped.current, index: settledIndex };
+      onIndexChange(settledIndex);
     },
-    [index, onIndexChange, pageHeight, papers.length],
+    [onIndexChange],
   );
 
   const requestPage = useCallback(
     (direction: PageDirection) => {
-      if (pageHeight <= 0 || papers.length === 0) return;
-
-      const current = Math.min(
-        papers.length - 1,
-        Math.max(0, targetIndex.current),
-      );
-      const next = Math.min(
-        papers.length - 1,
-        Math.max(0, current + direction),
-      );
-      if (next === current) return;
-
-      // Keep this ref ahead of React state while a native scroll animation is
-      // running, so a second deliberate boundary swipe uses the intended page.
-      targetIndex.current = next;
-      const nextOffset = next * pageHeight;
-      cancelAnimation(animatedOffset);
-      if (reduceMotion) {
-        animatedOffset.value = nextOffset;
-        finishPageAnimation(nextOffset);
-        return;
-      }
-
-      animatedOffset.value = withTiming(
-        nextOffset,
-        {
-          duration: PAGE_ANIMATION_DURATION,
-          easing: Easing.out(Easing.cubic),
-        },
-        (finished) => {
-          if (finished) runOnJS(finishPageAnimation)(nextOffset);
-        },
-      );
+      const lastIndex = count.value - 1;
+      const next = Math.min(lastIndex, Math.max(0, target.value + direction));
+      if (next === target.value || next < 0) return;
+      movePagerTo(pager, next, handleSettled, reduceMotion);
     },
+    [count, handleSettled, pager, reduceMotion, target],
+  );
+
+  const renderItem = useCallback(
+    ({ item, index: itemIndex }: ListRenderItemInfo<Paper>) => (
+      <PaperCard
+        paper={item}
+        index={itemIndex}
+        height={pageHeight}
+        pager={pager}
+        saved={isSaved(item.arxivId)}
+        hasOfflinePaper={hasOfflinePaper(item.arxivId)}
+        hasPdf={hasPdf(item.arxivId)}
+        downloading={downloadingId === item.arxivId}
+        canCancelDownload={canCancelDownload}
+        onRead={onRead}
+        onToggleSave={onToggleSave}
+        onDownload={onDownload}
+        onCancelDownload={onCancelDownload}
+        onSettled={handleSettled}
+      />
+    ),
     [
-      animatedOffset,
-      finishPageAnimation,
+      canCancelDownload,
+      downloadingId,
+      handleSettled,
+      hasOfflinePaper,
+      hasPdf,
+      isSaved,
+      onCancelDownload,
+      onDownload,
+      onRead,
+      onToggleSave,
       pageHeight,
-      papers.length,
-      reduceMotion,
+      pager,
     ],
   );
 
+  const atEnd = index >= papers.length - 1;
+
+  // The header stays on every state. It holds the only route to the menu, and
+  // that route must keep working offline so downloads remain reachable.
   const header = (
-    <View style={[styles.header, { paddingTop: Math.max(insets.top, 8) }]}>
-      <Pressable onPress={onOpenCategories} style={styles.catBtn} hitSlop={8}>
-        <View style={styles.catIcon}>
-          <Tags color={colors.text} size={18} strokeWidth={1.8} />
+    <View style={[styles.header, { paddingTop: Math.max(insets.top, 8) + 2 }]}>
+      <PressableScale
+        accessibilityLabel={t("categories.title")}
+        onPress={onOpenCategories}
+        scaleTo={0.985}
+        style={styles.categoryButton}
+      >
+        <View style={styles.headerIcon}>
+          <Tags color={colors.text} size={19} strokeWidth={1.7} />
         </View>
-        <View style={styles.catCopy}>
-          <Text style={styles.catLabel} numberOfLines={1}>
+        <View style={styles.categoryCopy}>
+          <Text style={styles.categoryLabel} numberOfLines={1}>
             {categoriesSummary(categories)}
           </Text>
-          <Text style={styles.catHint}>
+          <Text style={styles.categoryHint} numberOfLines={1}>
             {categories.length > 1
               ? t("common.selectedChange", { count: categories.length })
               : t("common.change")}
           </Text>
         </View>
-      </Pressable>
-      <View style={styles.headerRight}>
-        {paginationStatus !== "idle" ? (
-          <View style={styles.pageMeta}>
-            {paginationStatus === "loading" ? (
-              <Text style={styles.pageStatus}>{t("common.loadingMore")}</Text>
-            ) : paginationStatus === "error" ? (
-              <Pressable
-                onPress={onRetry}
-                hitSlop={8}
-                accessibilityHint={paginationError ?? undefined}
-              >
-                <Text style={styles.pageError}>{t("common.retryMore")}</Text>
-              </Pressable>
-            ) : paginationStatus === "exhausted" ? (
-              <Text style={styles.pageStatus}>{t("common.endOfFeed")}</Text>
-            ) : null}
-          </View>
-        ) : null}
+      </PressableScale>
+      {paginationStatus === "error" ? (
         <Pressable
-          accessibilityLabel={t("menu.title")}
-          accessibilityHint={
-            updateAvailable ? t("settings.updateAvailable") : undefined
-          }
-          onPress={onOpenMenu}
-          style={({ pressed }) => [
-            styles.menuButton,
-            pressed && styles.menuButtonPressed,
-          ]}
+          accessibilityHint={paginationError ?? undefined}
+          accessibilityRole="button"
+          hitSlop={8}
+          onPress={onRetry}
         >
-          <Menu color={colors.text} size={21} strokeWidth={1.8} />
-          {updateAvailable ? <View style={styles.updateDot} /> : null}
+          <Text style={styles.pageError}>{t("common.retryMore")}</Text>
         </Pressable>
-      </View>
+      ) : atEnd && paginationStatus === "loading" ? (
+        <Text style={styles.pageStatus}>{t("common.loadingMore")}</Text>
+      ) : atEnd && paginationStatus === "exhausted" ? (
+        <Text style={styles.pageStatus}>{t("common.endOfFeed")}</Text>
+      ) : null}
+      <IconButton
+        icon={Menu}
+        label={t("menu.title")}
+        hint={updateAvailable ? t("settings.updateAvailable") : undefined}
+        badge={updateAvailable}
+        onPress={onOpenMenu}
+      />
     </View>
   );
 
-  if (status === "loading" && papers.length === 0) {
-    return (
-      <View style={styles.root}>
-        {header}
-        <LoadingScreen />
-      </View>
-    );
-  }
-
-  if (status === "error" && papers.length === 0) {
+  let body: React.ReactNode;
+  if (papers.length === 0 && (status === "idle" || status === "loading")) {
+    body = <LoadingScreen />;
+  } else if (papers.length === 0 && status === "error") {
     const openWifiSettings = () => {
       void IntentLauncher.startActivityAsync(
         IntentLauncher.ActivityAction.WIFI_SETTINGS,
       ).catch(() => undefined);
     };
-    return (
-      <View style={styles.center}>
-        {offline ? (
-          <WifiOff
-            color={colors.dim}
-            size={40}
-            strokeWidth={1.5}
-            style={styles.offlineIcon}
+    body = (
+      <EmptyState
+        icon={offline ? WifiOff : CloudOff}
+        title={t(offline ? "network.offlineTitle" : "common.loadFeedFailed")}
+        body={
+          offline
+            ? t("network.offlineBody")
+            : (error ?? t("common.unknownError"))
+        }
+        style={styles.state}
+      >
+        <Button
+          variant="primary"
+          icon={RefreshCw}
+          label={t("common.retry")}
+          onPress={onRetry}
+        />
+        {offline && Platform.OS === "android" ? (
+          <Button
+            icon={WifiOff}
+            label={t("network.openWifi")}
+            onPress={openWifiSettings}
           />
         ) : null}
-        <Text style={styles.errorTitle}>
-          {t(offline ? "network.offlineTitle" : "common.loadFeedFailed")}
-        </Text>
-        <Text style={styles.errorBody}>
-          {offline
-            ? t("network.offlineBody")
-            : (error ?? t("common.unknownError"))}
-        </Text>
-        <View style={styles.errorActions}>
-          {offline ? (
-            <Pressable style={styles.retry} onPress={openWifiSettings}>
-              <Text style={styles.retryText}>{t("network.openWifi")}</Text>
-            </Pressable>
-          ) : null}
-          <Pressable
-            style={offline ? styles.secondaryRetry : styles.retry}
-            onPress={onRetry}
-          >
-            <Text style={styles.retryText}>{t("common.retry")}</Text>
-          </Pressable>
-        </View>
-      </View>
+        <Button
+          variant="ghost"
+          icon={Download}
+          label={t("network.openDownloads")}
+          onPress={onOpenDownloads}
+        />
+      </EmptyState>
     );
-  }
-
-  if (status === "ready" && papers.length === 0) {
-    return (
-      <View style={styles.center}>
-        <Tags color={colors.dim} size={28} strokeWidth={1.5} />
-        <Text style={styles.errorTitle}>{t("categories.noCommonPapers")}</Text>
-        <Text style={styles.errorBody}>
-          {t("categories.noCommonPapersHint")}
-        </Text>
-        <Pressable style={styles.retry} onPress={onOpenCategories}>
-          <Text style={styles.retryText}>
-            {t("categories.changeSelection")}
-          </Text>
-        </Pressable>
-      </View>
+  } else if (papers.length === 0) {
+    body = (
+      <EmptyState
+        icon={Tags}
+        title={t(
+          categories.length > 1
+            ? "categories.noCommonPapers"
+            : "categories.feedEmpty",
+        )}
+        body={t(
+          categories.length > 1
+            ? "categories.noCommonPapersHint"
+            : "categories.feedEmptyHint",
+        )}
+        style={styles.state}
+      >
+        <Button
+          variant="primary"
+          label={t("categories.changeSelection")}
+          onPress={onOpenCategories}
+        />
+      </EmptyState>
+    );
+  } else {
+    body = (
+      <>
+        <Animated.FlatList
+          ref={listRef}
+          key={`${feedKey}-${pageHeight}-${i18n.language}`}
+          data={pageHeight > 0 ? papers : []}
+          keyExtractor={(item) => item.arxivId}
+          renderItem={renderItem}
+          initialScrollIndex={
+            pageHeight > 0 && papers.length > 0
+              ? Math.min(index, papers.length - 1)
+              : undefined
+          }
+          scrollEnabled={false}
+          showsVerticalScrollIndicator={false}
+          getItemLayout={getItemLayout}
+          onLayout={onListLayout}
+          windowSize={5}
+          maxToRenderPerBatch={3}
+          initialNumToRender={2}
+          style={styles.list}
+        />
+        {papers.length > 1 ? (
+          <FeedRail
+            pager={pager}
+            count={papers.length}
+            atStart={index <= 0}
+            atEnd={atEnd}
+            onPage={requestPage}
+            bottomInset={insets.bottom + RAIL_BOTTOM_CLEARANCE}
+          />
+        ) : null}
+      </>
     );
   }
 
   return (
     <View style={styles.root}>
       {header}
-
-      <Animated.FlatList
-        ref={listRef}
-        key={`${feedKey}-${pageHeight}-${i18n.language}`}
-        data={pageHeight > 0 ? papers : []}
-        keyExtractor={(item) => item.arxivId}
-        renderItem={({ item }) => (
-          <PaperCard
-            paper={item}
-            height={pageHeight}
-            saved={isSaved(item.arxivId)}
-            hasOfflinePaper={hasOfflinePaper(item.arxivId)}
-            hasPdf={hasPdf(item.arxivId)}
-            downloading={downloadingId === item.arxivId}
-            canCancelDownload={canCancelDownload}
-            onRead={onRead}
-            onToggleSave={onToggleSave}
-            onDownload={onDownload}
-            onCancelDownload={onCancelDownload}
-            onPage={requestPage}
-          />
-        )}
-        initialScrollIndex={
-          pageHeight > 0 && papers.length > 0
-            ? Math.min(index, papers.length - 1)
-            : undefined
-        }
-        scrollEnabled={false}
-        showsVerticalScrollIndicator={false}
-        getItemLayout={getItemLayout}
-        onLayout={onListLayout}
-        windowSize={5}
-        maxToRenderPerBatch={3}
-        initialNumToRender={2}
-        removeClippedSubviews
-        style={styles.list}
-      />
+      <View style={styles.content}>{body}</View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
   },
+  content: {
+    flex: 1,
+  },
   list: {
+    flex: 1,
+  },
+  state: {
     flex: 1,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
+    gap: 10,
+    paddingHorizontal: spacing.gutter - 4,
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     backgroundColor: colors.background,
   },
-  catBtn: {
+  categoryButton: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 46,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginRight: 12,
+    gap: 11,
   },
-  catIcon: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.medium,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  catCopy: { flex: 1, gap: 2 },
-  catLabel: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  catHint: {
-    color: colors.accent,
-    fontSize: 12,
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  pageMeta: { alignItems: "flex-end", gap: 3 },
-  pageStatus: {
-    color: colors.dim,
-    fontSize: 11,
-  },
-  pageError: {
-    color: colors.danger,
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  menuButton: {
+  headerIcon: {
     width: 44,
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radii.medium,
+    borderRadius: 14,
     backgroundColor: colors.surfaceRaised,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
+    borderTopColor: colors.highlight,
   },
-  menuButtonPressed: { backgroundColor: colors.surfacePressed },
-  updateDot: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.danger,
-  },
-  center: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 28,
-  },
-  errorTitle: {
+  categoryCopy: { flex: 1, gap: 1 },
+  categoryLabel: {
+    ...typography.title,
     color: colors.text,
-    fontSize: 17,
-    fontWeight: "600",
-    marginBottom: 8,
   },
-  errorBody: {
-    color: colors.muted,
-    textAlign: "center",
-    marginBottom: 20,
+  categoryHint: {
+    ...typography.caption,
+    color: colors.dim,
   },
-  offlineIcon: {
-    marginBottom: 18,
+  pageStatus: {
+    ...typography.micro,
+    color: colors.dim,
   },
-  errorActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  retry: {
-    backgroundColor: colors.surfacePressed,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: radii.medium,
-  },
-  retryText: {
-    color: colors.text,
-    fontWeight: "600",
-  },
-  secondaryRetry: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: radii.medium,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+  pageError: {
+    ...typography.micro,
+    color: colors.danger,
   },
 });

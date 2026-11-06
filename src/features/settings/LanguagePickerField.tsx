@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import ChevronDown from "lucide-react-native/icons/chevron-down";
 import Languages from "lucide-react-native/icons/languages";
-import { colors, radii } from "@/shared/theme";
+import { colors, radii, surfaces, typography } from "@/shared/theme";
+import { PressableScale } from "@/shared/ui/PressableScale";
 import type { LanguageOption } from "./languagePicker";
 
 export function LanguagePickerField({
@@ -15,13 +16,13 @@ export function LanguagePickerField({
 }) {
   const selected = options.find((option) => option.id === value) ?? options[0];
   return (
-    <Pressable
-      accessibilityRole="button"
+    <PressableScale
       onPress={onPress}
-      style={({ pressed }) => [styles.field, pressed && styles.pressed]}
+      scaleTo={0.985}
+      style={[surfaces.card, styles.field]}
     >
-      <View style={styles.icon}>
-        <Languages color={colors.text} size={19} strokeWidth={1.8} />
+      <View style={[surfaces.control, styles.icon]}>
+        <Languages color={colors.text} size={18} strokeWidth={1.7} />
       </View>
       <View style={styles.copy}>
         <Text style={styles.label}>{selected?.label}</Text>
@@ -29,24 +30,20 @@ export function LanguagePickerField({
           <Text style={styles.detail}>{selected.detail}</Text>
         ) : null}
       </View>
-      <ChevronDown color={colors.dim} size={19} strokeWidth={1.8} />
-    </Pressable>
+      <ChevronDown color={colors.dim} size={18} strokeWidth={1.7} />
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   field: {
-    minHeight: 58,
+    minHeight: 62,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     marginBottom: 18,
-    padding: 10,
-    paddingRight: 14,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
+    padding: 11,
+    paddingRight: 15,
   },
   icon: {
     width: 38,
@@ -54,10 +51,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radii.small,
-    backgroundColor: colors.surfaceRaised,
   },
-  copy: { flex: 1, gap: 2 },
-  label: { color: colors.text, fontSize: 15, fontWeight: "500" },
-  detail: { color: colors.dim, fontSize: 12 },
-  pressed: { opacity: 0.82 },
+  copy: { flex: 1, gap: 1 },
+  label: { ...typography.label, fontSize: 15, color: colors.text },
+  detail: { ...typography.caption, color: colors.dim },
 });

@@ -1,17 +1,21 @@
 import { useEffect, useState } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
+import Plug from "lucide-react-native/icons/plug";
 import Trash2 from "lucide-react-native/icons/trash-2";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radii } from "@/shared/theme";
+import { colors, spacing, typography } from "@/shared/theme";
+import { Button } from "@/shared/ui/Button";
+import { TextField } from "@/shared/ui/TextField";
 import { type ModelOption, type ProviderProfile } from "./providerCore";
 import { fetchModelCatalog } from "./providers";
 import { ModelPicker } from "./ModelPicker";
@@ -55,6 +59,7 @@ export function ProviderEditor({
   const [apiKey, setApiKey] = useState("");
   const [models, setModels] = useState<ModelOption[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [hasSavedKey, setHasSavedKey] = useState(false);
   const isExisting = draft
     ? manager.profiles.some((profile) => profile.id === draft.id)
@@ -105,6 +110,8 @@ export function ProviderEditor({
   };
 
   const save = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const existingKey = apiKey.trim() || (await manager.getApiKey(form.id));
       if (!existingKey) throw new Error(t("provider.keyRequired"));
@@ -114,6 +121,8 @@ export function ProviderEditor({
       showDialog({ kind: "success", title: t("provider.saved") });
     } catch (error) {
       showError(t("provider.saveFailed"), error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -125,7 +134,7 @@ export function ProviderEditor({
       actions: [
         { text: t("common.cancel"), style: "cancel" },
         {
-          text: t("library.clear"),
+          text: t("common.delete"),
           style: "destructive",
           onPress: async () => {
             try {
@@ -148,38 +157,71 @@ export function ProviderEditor({
     <Modal
       visible
       animationType="slide"
-      presentationStyle="pageSheet"
+      presentationStyle="fullScreen"
+      statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={[styles.editor, { paddingTop: insets.top + 8 }]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={[styles.editor, { paddingTop: Math.max(insets.top, 8) + 2 }]}
+      >
         <View style={styles.header}>
-          <Pressable onPress={onClose} hitSlop={10}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onClose}
+            hitSlop={12}
+            style={styles.headerAction}
+          >
             <Text style={styles.secondaryAction}>{t("common.cancel")}</Text>
           </Pressable>
-          <Text style={styles.title}>{t("provider.editTitle")}</Text>
-          <Pressable onPress={() => void save()} hitSlop={10}>
+          <Text
+            accessibilityRole="header"
+            numberOfLines={1}
+            style={styles.title}
+          >
+            {t("provider.editTitle")}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ busy: saving }}
+            disabled={saving}
+            onPress={() => void save()}
+            hitSlop={12}
+            style={[styles.headerAction, styles.headerActionEnd]}
+          >
             <Text style={styles.save}>{t("common.done")}</Text>
           </Pressable>
         </View>
         <ScrollView
-          contentContainerStyle={styles.body}
+          contentContainerStyle={[
+            styles.body,
+            { paddingBottom: insets.bottom + 40 },
+          ]}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Field
+          <TextField
             label={t("provider.name")}
             value={form.name}
             onChangeText={(name) => setForm({ ...form, name })}
           />
-          <Field
+          <TextField
             label={t("provider.kind")}
-            value={form.kind}
+            value={
+              form.kind === "openrouter"
+                ? "OpenRouter"
+                : t("provider.compatible")
+            }
             editable={false}
           />
-          <Field
+          <TextField
             label={t("provider.endpoint")}
             value={form.baseUrl}
             editable={form.kind === "openai-compatible"}
             autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
             onChangeText={(baseUrl) => setForm({ ...form, baseUrl })}
           />
           <SecretField
@@ -190,98 +232,61 @@ export function ProviderEditor({
             clearLabel={t("provider.clearKey")}
             onChangeText={setApiKey}
           />
-          <Field
+          <TextField
             label={t("provider.model")}
             value={form.model}
             autoCapitalize="none"
+            autoCorrect={false}
             onChangeText={(model) => setForm({ ...form, model })}
           />
-          <Pressable
-            style={styles.testButton}
+          <Button
+            icon={Plug}
+            label={
+              loading ? t("provider.loadingModels") : t("provider.testAndLoad")
+            }
+            loading={loading}
             onPress={() => void loadModels()}
-            disabled={loading}
-          >
-            <Text style={styles.testText}>
-              {loading
-                ? t("provider.loadingModels")
-                : t("provider.testAndLoad")}
-            </Text>
-          </Pressable>
+            style={styles.testButton}
+          />
           <ModelPicker
             models={models}
             selectedId={form.model}
             onSelect={(model) => setForm({ ...form, model })}
           />
-          {manager.profiles.some((profile) => profile.id === form.id) ? (
-            <Pressable style={styles.deleteButton} onPress={remove}>
-              <Trash2 color={colors.danger} size={17} strokeWidth={1.8} />
-              <Text style={styles.deleteText}>{t("provider.delete")}</Text>
-            </Pressable>
+          {isExisting ? (
+            <Button
+              variant="danger"
+              icon={Trash2}
+              label={t("provider.delete")}
+              onPress={remove}
+              style={styles.deleteButton}
+            />
           ) : null}
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
-  );
-}
-
-function Field(
-  props: React.ComponentProps<typeof TextInput> & { label: string },
-) {
-  const { label, ...inputProps } = props;
-  return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        placeholderTextColor={colors.dim}
-        style={[styles.input, inputProps.editable === false && styles.disabled]}
-        {...inputProps}
-      />
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   editor: { flex: 1, backgroundColor: colors.background },
   header: {
+    minHeight: 52,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 18,
-    paddingBottom: 10,
+    gap: 8,
+    paddingHorizontal: spacing.gutter,
+    paddingBottom: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  title: { color: colors.text, fontSize: 18, fontWeight: "700" },
-  secondaryAction: { color: colors.muted, fontSize: 14, fontWeight: "600" },
-  save: { color: colors.text, fontSize: 15, fontWeight: "700" },
-  body: { padding: 16, paddingBottom: 48 },
-  field: { marginBottom: 14 },
-  label: { color: colors.muted, fontSize: 12, marginBottom: 6 },
-  input: {
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radii.medium,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    color: colors.text,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 14,
-  },
-  disabled: { color: colors.dim },
-  testButton: {
-    backgroundColor: colors.text,
-    borderRadius: radii.medium,
-    paddingVertical: 13,
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  testText: { color: colors.inverse, fontWeight: "700" },
-  deleteButton: {
-    marginTop: 28,
-    minHeight: 44,
-    flexDirection: "row",
-    gap: 7,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 13,
-  },
-  deleteText: { color: colors.danger, fontWeight: "600" },
+  headerAction: { minWidth: 64, minHeight: 40, justifyContent: "center" },
+  headerActionEnd: { alignItems: "flex-end" },
+  title: { ...typography.title, flexShrink: 1, color: colors.text },
+  secondaryAction: { ...typography.label, color: colors.muted },
+  save: { ...typography.label, fontWeight: "600", color: colors.accent },
+  body: { padding: 16 },
+  testButton: { marginTop: 2, marginBottom: 14 },
+  deleteButton: { marginTop: 24 },
 });

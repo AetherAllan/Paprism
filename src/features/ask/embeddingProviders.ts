@@ -90,9 +90,18 @@ export async function fetchEmbeddingModels(
   if (profile.kind === "openai-compatible") {
     return fetchModelCatalog(profile, apiKey, true);
   }
-  const response = await fetch(`${OPENROUTER_BASE_URL}/embeddings/models`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
+  // Keep "test connection" from spinning forever on a stalled socket.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  let response: Response;
+  try {
+    response = await fetch(`${OPENROUTER_BASE_URL}/embeddings/models`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!response.ok) throw new Error(`Embedding models HTTP ${response.status}`);
   const payload = (await response.json()) as { data?: unknown[] };
   return sortModelsFreeFirst(

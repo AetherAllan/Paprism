@@ -2,7 +2,7 @@ import type { PaperDocument } from "@/features/viewer/paperDocument";
 import {
   loadPaperEmbeddings,
   deleteStalePaperEmbeddings,
-  savePaperEmbedding,
+  savePaperEmbeddings,
 } from "./askDatabase";
 import {
   buildPaperChunks,
@@ -50,17 +50,15 @@ export async function retrievePaperChunks({
         batch.map((chunk) => chunk.text),
         signal,
       );
-      for (let index = 0; index < batch.length; index += 1) {
-        const chunk = batch[index]!;
-        const vector = vectors[index]!;
-        await savePaperEmbedding(
-          document.arxivId,
-          document.sourceHash,
-          fingerprint,
-          chunk.id,
-          encodeVector(vector),
-        );
-      }
+      await savePaperEmbeddings(
+        document.arxivId,
+        document.sourceHash,
+        fingerprint,
+        batch.map((chunk, index) => ({
+          chunkId: chunk.id,
+          vector: encodeVector(vectors[index]!),
+        })),
+      );
     }
     stored = await loadPaperEmbeddings(
       document.arxivId,

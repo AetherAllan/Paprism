@@ -6,12 +6,12 @@
     "settings": "Settings",
     "change": "Change",
     "retry": "Retry",
-    "back": "← Back",
+    "back": "Back",
     "read": "Read",
     "save": "Save",
     "saved": "Saved",
     "download": "Download",
-    "downloading": "…",
+    "downloading": "Saving",
     "downloaded": "Downloaded",
     "offlineRead": "Read offline",
     "pdfSaved": "PDF saved",
@@ -28,7 +28,9 @@
     "loadingMore": "Loading more…",
     "retryMore": "Retry loading",
     "endOfFeed": "You're all caught up",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "delete": "Delete",
+    "clearInput": "Clear input"
   },
   "recovery": {
     "title": "Local data was recovered",
@@ -37,14 +39,18 @@
   "network": {
     "offlineTitle": "You're offline",
     "offlineBody": "Connect to Wi-Fi or mobile data, then try again.",
-    "openWifi": "Open Wi-Fi settings"
+    "openWifi": "Open Wi-Fi settings",
+    "openDownloads": "View downloaded papers"
   },
   "menu": {
     "title": "Menu",
     "search": "Search",
     "translation": "Translation",
     "ask": "Ask",
-    "language": "Language"
+    "language": "Language",
+    "tagline": "Swipe through papers.",
+    "groupLibrary": "Library",
+    "groupSettings": "Settings"
   },
   "search": {
     "placeholder": "Search titles, abstracts, or authors",
@@ -54,7 +60,8 @@
     "loading": "Searching…",
     "failed": "Search failed",
     "empty": "No matching papers found.",
-    "end": "Showing {{count}} results"
+    "end_one": "Showing {{count}} result",
+    "end_other": "Showing {{count}} results"
   },
   "categories": {
     "title": "Categories",
@@ -65,7 +72,9 @@
     "removeSelection": "Remove {{category}}",
     "noCommonPapers": "No papers match every selected category",
     "noCommonPapersHint": "Multiple categories use a strict intersection. Remove one or more categories to broaden the feed.",
-    "changeSelection": "Change categories"
+    "changeSelection": "Change categories",
+    "feedEmpty": "No papers in this category yet",
+    "feedEmptyHint": "Try another category, or check back later."
   },
   "settings": {
     "title": "Settings",
@@ -125,7 +134,7 @@
     "tabDownloads": "Downloads",
     "emptySaved": "Saved papers will show up here.",
     "emptyHistory": "Papers shown in your feed or opened directly will appear here.",
-    "emptyDownloads": "Downloaded PDFs will appear here.",
+    "emptyDownloads": "Downloaded PDFs and offline papers will appear here.",
     "clearHistory": "Clear history",
     "clearHistoryTitle": "Clear history?",
     "clearHistoryBody": "This removes your browsing history on this device.",
@@ -141,7 +150,10 @@
     "manage": "Manage",
     "removeDownloads": "Delete downloads",
     "removeDownloadsBody": "This removes the offline reader package and app-local PDF for this paper.",
-    "openPdf": "Open PDF"
+    "openPdf": "Open PDF",
+    "downloadBusy": "Another paper is downloading. Try again when it finishes.",
+    "count_one": "{{count}} paper",
+    "count_other": "{{count}} papers"
   },
   "provider": {
     "title": "Translation providers",
@@ -162,14 +174,15 @@
     "searchModels": "Search models",
     "connectionOk": "Connection succeeded",
     "connectionFailed": "Connection failed",
-    "modelsFound": "Found {{count}} models.",
     "free": "Free",
     "keyRequired": "API key is required",
     "saveFailed": "Could not save provider",
     "saved": "Provider saved",
     "deleted": "Provider deleted",
     "delete": "Delete profile",
-    "deleteTitle": "Delete provider profile?"
+    "deleteTitle": "Delete provider profile?",
+    "modelsFound_one": "Found {{count}} model.",
+    "modelsFound_other": "Found {{count}} models."
   },
   "translation": {
     "setupTitle": "Set up translation",
@@ -177,7 +190,8 @@
     "keyMissing": "The selected provider has no API key",
     "pending": "{{count}} queued",
     "retryFailed": "Tap to retry",
-    "translationOnly": "Translation"
+    "translationOnly": "Translation",
+    "dual": "Dual"
   },
   "ask": {
     "enabled": "Enable Paprism Ask",
@@ -210,6 +224,16 @@
       "searching": "Searching the web",
       "connecting": "Waiting for model",
       "answering": "Writing answer"
-    }
+    },
+    "stop": "Stop answering",
+    "send": "Send",
+    "removeQuote": "Remove quote",
+    "suggestSummary": "Summarize this paper in a few sentences",
+    "suggestMethod": "What is the core method?",
+    "suggestLimits": "What are the limitations of this work?"
+  },
+  "feed": {
+    "previous": "Previous paper",
+    "next": "Next paper"
   }
 }

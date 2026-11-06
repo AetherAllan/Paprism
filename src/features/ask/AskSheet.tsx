@@ -1,7 +1,14 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import {
   ActivityIndicator,
-  BackHandler,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -10,36 +17,47 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { BlurView } from "expo-blur";
-import Animated, {
-  FadeInDown,
-  useReducedMotion,
-} from "react-native-reanimated";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import {
   EnrichedMarkdownText,
   type MarkdownStyle,
 } from "react-native-enriched-markdown";
+import ArrowUp from "lucide-react-native/icons/arrow-up";
 import CircleAlert from "lucide-react-native/icons/circle-alert";
 import Globe2 from "lucide-react-native/icons/earth";
-import Send from "lucide-react-native/icons/send";
+import MessageCircleQuestion from "lucide-react-native/icons/message-circle-question-mark";
+import RotateCcw from "lucide-react-native/icons/rotate-ccw";
+import Settings2 from "lucide-react-native/icons/settings-2";
+import Square from "lucide-react-native/icons/square";
 import Trash2 from "lucide-react-native/icons/trash-2";
 import X from "lucide-react-native/icons/x";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { ProviderProfile } from "@/features/settings/providerCore";
-import { colors, radii } from "@/shared/theme";
+import { colors, radii, surfaces, typography } from "@/shared/theme";
+import { Button } from "@/shared/ui/Button";
+import { EmptyState } from "@/shared/ui/EmptyState";
+import { IconButton } from "@/shared/ui/IconButton";
+import { PressableScale } from "@/shared/ui/PressableScale";
+import { useSheetPresence } from "@/shared/ui/useSheetPresence";
 import type { useAskConversation } from "./useAskConversation";
+import type { AskMessage, AskSource } from "./askTypes";
 import { useAppDialog } from "@/shared/AppDialog";
 
 type Conversation = ReturnType<typeof useAskConversation>;
-const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
+const NO_SOURCES: AskSource[] = [];
+// Within this distance of the end, new text keeps the view pinned to the bottom.
+const PINNED_THRESHOLD = 56;
+
 const ASK_MARKDOWN_STYLE: MarkdownStyle = {
   paragraph: {
     color: colors.text,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 15,
+    lineHeight: 23,
     marginBottom: 8,
   },
   h1: { color: colors.text, fontSize: 18, lineHeight: 24, marginBottom: 8 },
@@ -51,10 +69,10 @@ const ASK_MARKDOWN_STYLE: MarkdownStyle = {
   link: { color: colors.accent, underline: true },
   list: {
     color: colors.text,
-    fontSize: 14,
-    lineHeight: 21,
-    bulletColor: colors.accent,
-    markerColor: colors.accent,
+    fontSize: 15,
+    lineHeight: 23,
+    bulletColor: colors.muted,
+    markerColor: colors.muted,
     gapWidth: 6,
     marginLeft: 4,
     marginBottom: 8,
@@ -65,7 +83,7 @@ const ASK_MARKDOWN_STYLE: MarkdownStyle = {
     lineHeight: 21,
     borderColor: colors.accent,
     borderWidth: 2,
-    gapWidth: 9,
+    gapWidth: 10,
     backgroundColor: colors.surface,
     marginBottom: 8,
   },
@@ -79,8 +97,8 @@ const ASK_MARKDOWN_STYLE: MarkdownStyle = {
     backgroundColor: colors.background,
     borderColor: colors.borderStrong,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: radii.small,
+    padding: 11,
     fontSize: 13,
     lineHeight: 19,
     marginBottom: 8,
@@ -92,11 +110,22 @@ const ASK_MARKDOWN_STYLE: MarkdownStyle = {
   inlineMath: { color: colors.text },
 };
 
+/**
+ * Model output and web citations are untrusted. Only web links may leave the
+ * app, so an answer cannot trigger intent:// or similar schemes.
+ */
+function openWebLink(url: string) {
+  if (!/^https?:\/\//i.test(url)) return;
+  void Linking.openURL(url).catch(() => undefined);
+}
+
+const openMarkdownLink = ({ url }: { url: string }) => openWebLink(url);
+
 export function AskSheet({
   visible,
   conversation,
   chatProfile,
-  visibleBlockId,
+  getVisibleBlockId,
   onClose,
   onNavigateToSource,
   onOpenSettings,
@@ -105,7 +134,7 @@ export function AskSheet({
   visible: boolean;
   conversation: Conversation;
   chatProfile: ProviderProfile | null;
-  visibleBlockId: string | null;
+  getVisibleBlockId: () => string | null;
   onClose: () => void;
   onNavigateToSource: (blockId: string) => void;
   onOpenSettings: () => void;
@@ -114,137 +143,208 @@ export function AskSheet({
   const { t } = useTranslation();
   const { showDialog, showError } = useAppDialog();
   const insets = useSafeAreaInsets();
-  const reduceMotion = useReducedMotion();
+  const { height: windowHeight } = useWindowDimensions();
+  const { mounted, progress } = useSheetPresence(visible);
   const scroll = useRef<ScrollView>(null);
   const restoredScroll = useRef(false);
+  const pinnedToEnd = useRef(true);
   const persistUiRef = useRef(conversation.persistUi);
   persistUiRef.current = conversation.persistUi;
   const [webSearch, setWebSearch] = useState(false);
   const supportsSearch = chatProfile?.kind === "openrouter";
+  const useWebSearch = webSearch && supportsSearch;
 
   useEffect(() => {
     if (visible) restoredScroll.current = false;
-    else void persistUiRef.current();
+    else void persistUiRef.current().catch(() => undefined);
     return () => {
-      if (visible) void persistUiRef.current();
+      if (visible) void persistUiRef.current().catch(() => undefined);
     };
   }, [visible]);
 
-  useEffect(() => {
-    if (!visible) return;
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      () => {
-        onClose();
-        return true;
-      },
-    );
-    return () => subscription.remove();
-  }, [onClose, visible]);
+  const sourcesByMessage = useMemo(() => {
+    const grouped = new Map<string, AskSource[]>();
+    for (const source of conversation.sources) {
+      const list = grouped.get(source.messageId) ?? [];
+      list.push(source);
+      grouped.set(source.messageId, list);
+    }
+    return grouped;
+  }, [conversation.sources]);
 
-  const submit = () => {
-    const question = conversation.draft.trim();
-    if (!question) return;
-    void conversation
-      .send(question, visibleBlockId, webSearch)
-      .catch((error) => showError(t("common.operationFailed"), error));
-  };
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
+  const sheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: (1 - progress.value) * windowHeight * 0.6 }],
+    opacity: progress.value,
+  }));
 
-  if (!visible) return null;
+  const { retry, send, setDraft, stop, setSelection } = conversation;
+
+  const submitQuestion = useCallback(
+    (question: string) => {
+      const trimmed = question.trim();
+      if (!trimmed) return;
+      pinnedToEnd.current = true;
+      void send(trimmed, getVisibleBlockId(), useWebSearch).catch((error) =>
+        showError(t("common.operationFailed"), error),
+      );
+    },
+    [getVisibleBlockId, send, showError, t, useWebSearch],
+  );
+
+  const retryMessage = useCallback(
+    (messageId: string) => {
+      pinnedToEnd.current = true;
+      void retry(messageId, getVisibleBlockId(), useWebSearch).catch((error) =>
+        showError(t("common.operationFailed"), error),
+      );
+    },
+    [getVisibleBlockId, retry, showError, t, useWebSearch],
+  );
+
+  const openSource = useCallback(
+    (source: AskSource) => {
+      if (source.url) openWebLink(source.url);
+      else if (source.blockId) onNavigateToSource(source.blockId);
+    },
+    [onNavigateToSource],
+  );
+
+  const confirmClear = () =>
+    showDialog({
+      kind: "destructive",
+      title: t("ask.clearPaperTitle"),
+      message: t("ask.clearPaperBody"),
+      actions: [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("library.clear"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await conversation.clear();
+              showDialog({
+                kind: "success",
+                title: t("ask.clearPaperSuccess"),
+              });
+            } catch (error) {
+              showError(t("common.operationFailed"), error);
+            }
+          },
+        },
+      ],
+    });
+
+  if (!mounted) return null;
+
+  const canSend = !conversation.busy && conversation.draft.trim().length > 0;
 
   return (
-    <View style={styles.overlay}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
+    <View pointerEvents={visible ? "auto" : "none"} style={styles.overlay}>
+      <Animated.View style={[styles.backdrop, backdropStyle]}>
+        <Pressable
+          accessibilityLabel={t("common.close")}
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.positioner}
         pointerEvents="box-none"
       >
-        <AnimatedBlurView
-          entering={reduceMotion ? undefined : FadeInDown.duration(260)}
-          intensity={52}
-          tint="dark"
-          blurTarget={blurTarget}
-          blurMethod="dimezisBlurViewSdk31Plus"
-          blurReductionFactor={3}
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) }]}
+        {/* Animate this wrapper, not the BlurView. An animated BlurView only
+            updates its inner native view, so the outer view would keep the
+            first frame's opacity of 0 and hide the sheet. */}
+        <Animated.View
+          style={[
+            styles.sheet,
+            { paddingBottom: Math.max(insets.bottom, 12) + 6 },
+            sheetStyle,
+          ]}
         >
+          <BlurView
+            intensity={52}
+            tint="dark"
+            blurTarget={blurTarget}
+            blurMethod="dimezisBlurViewSdk31Plus"
+            blurReductionFactor={3}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
           <View pointerEvents="none" style={styles.sheetTint} />
+          <View style={styles.handle} />
           <View style={styles.header}>
-            <View>
-              <Text style={styles.title}>Paprism Ask</Text>
-              <Text style={styles.subtitle}>
+            <View style={styles.headerCopy}>
+              <Text accessibilityRole="header" style={styles.title}>
+                Paprism Ask
+              </Text>
+              <Text numberOfLines={1} style={styles.subtitle}>
                 {chatProfile?.name ?? t("ask.providerMissing")}
               </Text>
             </View>
-            <View style={styles.headerActions}>
-              <Pressable
-                hitSlop={8}
-                onPress={() =>
-                  showDialog({
-                    kind: "destructive",
-                    title: t("ask.clearPaperTitle"),
-                    message: t("ask.clearPaperBody"),
-                    actions: [
-                      { text: t("common.cancel"), style: "cancel" },
-                      {
-                        text: t("library.clear"),
-                        style: "destructive",
-                        onPress: async () => {
-                          try {
-                            await conversation.clear();
-                            showDialog({
-                              kind: "success",
-                              title: t("ask.clearPaperSuccess"),
-                            });
-                          } catch (error) {
-                            showError(t("common.operationFailed"), error);
-                          }
-                        },
-                      },
-                    ],
-                  })
-                }
-              >
-                <Trash2 color={colors.dim} size={18} />
-              </Pressable>
-              <Pressable hitSlop={8} onPress={onClose}>
-                <X color={colors.textSecondary} size={21} />
-              </Pressable>
-            </View>
+            {conversation.messages.length > 0 ? (
+              <IconButton
+                icon={Trash2}
+                iconSize={17}
+                color={colors.muted}
+                label={t("ask.clearPaperTitle")}
+                onPress={confirmClear}
+                size={38}
+              />
+            ) : null}
+            <IconButton
+              icon={X}
+              iconSize={18}
+              color={colors.textSecondary}
+              label={t("common.close")}
+              onPress={onClose}
+              size={38}
+            />
           </View>
 
           {conversation.selection ? (
             <View style={styles.quote}>
-              <Text style={styles.quoteLabel}>{t("ask.selectedText")}</Text>
-              <Text style={styles.quoteText} numberOfLines={4}>
-                {conversation.selection.text}
-              </Text>
-              <Pressable
-                hitSlop={8}
-                onPress={() => conversation.setSelection(null)}
-              >
-                <Text style={styles.removeQuote}>{t("common.close")}</Text>
-              </Pressable>
+              <View style={styles.quoteCopy}>
+                <Text style={styles.quoteLabel}>{t("ask.selectedText")}</Text>
+                <Text style={styles.quoteText} numberOfLines={3}>
+                  {conversation.selection.text}
+                </Text>
+              </View>
+              <IconButton
+                plain
+                icon={X}
+                iconSize={15}
+                color={colors.muted}
+                label={t("ask.removeQuote")}
+                onPress={() => setSelection(null)}
+                size={32}
+              />
             </View>
           ) : null}
 
           {!chatProfile ? (
-            <View style={styles.setup}>
-              <Text style={styles.setupTitle}>{t("ask.setupTitle")}</Text>
-              <Text style={styles.setupBody}>{t("ask.setupBody")}</Text>
-              <Pressable style={styles.setupButton} onPress={onOpenSettings}>
-                <Text style={styles.setupButtonText}>
-                  {t("common.settings")}
-                </Text>
-              </Pressable>
-            </View>
+            <EmptyState
+              icon={MessageCircleQuestion}
+              title={t("ask.setupTitle")}
+              body={t("ask.setupBody")}
+              style={styles.setup}
+            >
+              <Button
+                variant="primary"
+                icon={Settings2}
+                label={t("common.settings")}
+                onPress={onOpenSettings}
+              />
+            </EmptyState>
           ) : (
             <>
               <ScrollView
                 ref={scroll}
                 style={styles.messages}
                 contentContainerStyle={styles.messageContent}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
                 onContentSizeChange={() => {
                   if (!restoredScroll.current) {
                     restoredScroll.current = true;
@@ -252,318 +352,401 @@ export function AskSheet({
                       y: conversation.chatOffset,
                       animated: false,
                     });
-                  } else if (conversation.busy) {
-                    scroll.current?.scrollToEnd({ animated: true });
+                  } else if (conversation.busy && pinnedToEnd.current) {
+                    // Follow the answer, unless the user scrolled up to read.
+                    scroll.current?.scrollToEnd({ animated: false });
                   }
                 }}
-                onScroll={(event) =>
-                  conversation.setChatOffset(event.nativeEvent.contentOffset.y)
-                }
+                onScroll={(event) => {
+                  const { contentOffset, contentSize, layoutMeasurement } =
+                    event.nativeEvent;
+                  pinnedToEnd.current =
+                    contentSize.height -
+                      layoutMeasurement.height -
+                      contentOffset.y <
+                    PINNED_THRESHOLD;
+                  conversation.setChatOffset(contentOffset.y);
+                }}
                 scrollEventThrottle={100}
               >
                 {conversation.messages.length === 0 ? (
-                  <Text style={styles.empty}>{t("ask.empty")}</Text>
-                ) : null}
-                {conversation.messages.map((message) => {
-                  const messageSources = conversation.sources.filter(
-                    (source) => source.messageId === message.id,
-                  );
-                  return (
-                    <View
-                      key={message.id}
-                      style={
-                        message.role === "user"
-                          ? styles.userMessage
-                          : styles.assistantMessage
-                      }
-                    >
-                      {message.role === "assistant" && message.content ? (
-                        <EnrichedMarkdownText
-                          markdown={message.content}
-                          markdownStyle={ASK_MARKDOWN_STYLE}
-                          selectable
-                          flavor="commonmark"
-                          streamingAnimation={message.status === "streaming"}
-                          onLinkPress={({ url }) =>
-                            void Linking.openURL(url).catch(() => undefined)
-                          }
-                          maxFontSizeMultiplier={1.8}
-                          selectionColor="rgba(139,92,246,0.28)"
-                          selectionHandleColor="#7c3aed"
-                        />
-                      ) : message.role === "assistant" &&
-                        message.status === "pending" &&
-                        conversation.activity ? (
-                        <View style={styles.workingStatus}>
-                          <ActivityIndicator
-                            color={colors.accent}
-                            size="small"
-                          />
-                          <View style={styles.workingCopy}>
-                            <Text style={styles.workingText}>
-                              {t(`ask.activity.${conversation.activity}`)}
-                            </Text>
-                            {!conversation.semanticUsed ? (
-                              <Text style={styles.workingDetail}>
-                                {t("ask.noSemantic")}
-                              </Text>
-                            ) : null}
-                          </View>
-                        </View>
-                      ) : (
-                        <Text style={styles.messageText} selectable>
-                          {message.content ||
-                            (message.status === "pending"
-                              ? "…"
-                              : t("ask.interrupted"))}
-                        </Text>
-                      )}
-                      {message.role === "assistant" &&
-                      (message.status === "error" ||
-                        message.status === "interrupted") ? (
-                        <Pressable
-                          onPress={() =>
-                            void conversation
-                              .retry(message.id, visibleBlockId, webSearch)
-                              .catch((error) =>
-                                showError(t("common.operationFailed"), error),
-                              )
-                          }
+                  <View style={styles.intro}>
+                    <EmptyState
+                      icon={MessageCircleQuestion}
+                      body={t("ask.empty")}
+                    />
+                    <View style={styles.suggestions}>
+                      {(
+                        [
+                          "ask.suggestSummary",
+                          "ask.suggestMethod",
+                          "ask.suggestLimits",
+                        ] as const
+                      ).map((key) => (
+                        <PressableScale
+                          key={key}
+                          onPress={() => submitQuestion(t(key))}
+                          scaleTo={0.97}
+                          style={styles.suggestion}
                         >
-                          <Text style={styles.retryText}>
-                            {t("common.retry")}
-                          </Text>
-                        </Pressable>
-                      ) : null}
-                      {messageSources.length > 0 ? (
-                        <View style={styles.sources}>
-                          {messageSources.map((source) => (
-                            <Pressable
-                              key={source.id}
-                              disabled={!source.url && !source.blockId}
-                              onPress={() => {
-                                if (source.url)
-                                  void Linking.openURL(source.url);
-                                else if (source.blockId)
-                                  onNavigateToSource(source.blockId);
-                              }}
-                            >
-                              <Text style={styles.sourceText} numberOfLines={1}>
-                                {source.title}
-                              </Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      ) : null}
+                          <Text style={styles.suggestionText}>{t(key)}</Text>
+                        </PressableScale>
+                      ))}
                     </View>
-                  );
-                })}
+                  </View>
+                ) : null}
+                {conversation.messages.map((message) => (
+                  <AskMessageRow
+                    key={message.id}
+                    message={message}
+                    sources={sourcesByMessage.get(message.id) ?? NO_SOURCES}
+                    activity={
+                      message.status === "pending"
+                        ? conversation.activity
+                        : null
+                    }
+                    semanticUsed={conversation.semanticUsed}
+                    onRetry={retryMessage}
+                    onOpenSource={openSource}
+                  />
+                ))}
               </ScrollView>
               <View style={styles.composer}>
-                <Pressable
-                  accessibilityLabel={t("ask.webSearch")}
-                  disabled={!supportsSearch}
-                  onPress={() => setWebSearch((value) => !value)}
-                  style={[
-                    styles.toolButton,
-                    webSearch && styles.toolButtonActive,
-                  ]}
-                >
-                  <Globe2
-                    color={
-                      supportsSearch
-                        ? webSearch
-                          ? colors.accent
-                          : colors.muted
-                        : colors.dim
-                    }
-                    size={19}
+                {supportsSearch ? (
+                  <IconButton
+                    plain
+                    icon={Globe2}
+                    iconSize={18}
+                    active={webSearch}
+                    color={colors.muted}
+                    label={t("ask.webSearch")}
+                    onPress={() => setWebSearch((value) => !value)}
+                    size={38}
+                    style={styles.toolButton}
                   />
-                </Pressable>
+                ) : null}
                 <TextInput
                   value={conversation.draft}
-                  onChangeText={conversation.setDraft}
+                  onChangeText={setDraft}
                   placeholder={t("ask.placeholder")}
                   placeholderTextColor={colors.dim}
+                  selectionColor={colors.accent}
                   multiline
                   style={styles.input}
                 />
-                <Pressable
-                  disabled={conversation.busy || !conversation.draft.trim()}
-                  onPress={submit}
-                  style={styles.send}
-                >
-                  <Send color={colors.background} size={18} />
-                </Pressable>
+                {conversation.busy ? (
+                  <PressableScale
+                    accessibilityLabel={t("ask.stop")}
+                    onPress={stop}
+                    scaleTo={0.9}
+                    style={[styles.send, styles.stop]}
+                  >
+                    <Square
+                      color={colors.text}
+                      fill={colors.text}
+                      size={12}
+                      strokeWidth={0}
+                    />
+                  </PressableScale>
+                ) : (
+                  <PressableScale
+                    accessibilityLabel={t("ask.send")}
+                    accessibilityState={{ disabled: !canSend }}
+                    disabled={!canSend}
+                    onPress={() => submitQuestion(conversation.draft)}
+                    scaleTo={0.9}
+                    style={[styles.send, !canSend && styles.sendDisabled]}
+                  >
+                    <ArrowUp
+                      color={colors.inverse}
+                      size={18}
+                      strokeWidth={2.2}
+                    />
+                  </PressableScale>
+                )}
               </View>
-              {supportsSearch ? (
+              {useWebSearch ? (
                 <View style={styles.searchWarning}>
-                  <CircleAlert color={colors.text} size={13} />
+                  <CircleAlert color={colors.muted} size={12} />
                   <Text style={styles.searchWarningText}>
                     {t("ask.webSearchCost")}
                   </Text>
                 </View>
-              ) : (
-                <Text style={styles.searchHint}>
-                  {t("ask.webSearchUnavailable")}
-                </Text>
-              )}
+              ) : null}
             </>
           )}
-        </AnimatedBlurView>
+        </Animated.View>
       </KeyboardAvoidingView>
     </View>
   );
 }
 
+const AskMessageRow = memo(function AskMessageRow({
+  message,
+  sources,
+  activity,
+  semanticUsed,
+  onRetry,
+  onOpenSource,
+}: {
+  message: AskMessage;
+  sources: AskSource[];
+  activity: string | null;
+  semanticUsed: boolean;
+  onRetry: (messageId: string) => void;
+  onOpenSource: (source: AskSource) => void;
+}) {
+  const { t } = useTranslation();
+  const isUser = message.role === "user";
+  const failed = message.status === "error";
+  const canRetry = !isUser && (failed || message.status === "interrupted");
+  // Retrieval can cite one section several times. Show each destination once.
+  const uniqueSources = useMemo(() => {
+    const seen = new Set<string>();
+    return sources.filter((source) => {
+      const key = `${source.title}\n${source.url ?? source.blockId ?? ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [sources]);
+
+  return (
+    <View style={isUser ? styles.userMessage : styles.assistantMessage}>
+      {isUser ? (
+        <Text selectable style={styles.userText}>
+          {message.content}
+        </Text>
+      ) : message.content && !failed ? (
+        <EnrichedMarkdownText
+          markdown={message.content}
+          markdownStyle={ASK_MARKDOWN_STYLE}
+          selectable
+          flavor="commonmark"
+          streamingAnimation={message.status === "streaming"}
+          onLinkPress={openMarkdownLink}
+          maxFontSizeMultiplier={1.8}
+          selectionColor={colors.accentSelection}
+          selectionHandleColor={colors.accent}
+        />
+      ) : message.status === "pending" ? (
+        <View style={styles.workingStatus}>
+          <ActivityIndicator color={colors.accent} size="small" />
+          <View style={styles.workingCopy}>
+            <Text style={styles.workingText}>
+              {activity ? t(`ask.activity.${activity}`) : "…"}
+            </Text>
+            {activity && !semanticUsed ? (
+              <Text style={styles.workingDetail}>{t("ask.noSemantic")}</Text>
+            ) : null}
+          </View>
+        </View>
+      ) : (
+        <Text selectable style={failed ? styles.errorText : styles.noteText}>
+          {message.content || t("ask.interrupted")}
+        </Text>
+      )}
+      {canRetry ? (
+        <PressableScale
+          onPress={() => onRetry(message.id)}
+          scaleTo={0.96}
+          style={styles.retry}
+        >
+          <RotateCcw color={colors.textSecondary} size={13} strokeWidth={1.8} />
+          <Text style={styles.retryText}>{t("common.retry")}</Text>
+        </PressableScale>
+      ) : null}
+      {uniqueSources.length > 0 ? (
+        <View style={styles.sources}>
+          {uniqueSources.map((source) => (
+            <PressableScale
+              accessibilityRole={source.url ? "link" : "button"}
+              disabled={!source.url && !source.blockId}
+              key={source.id}
+              onPress={() => onOpenSource(source)}
+              scaleTo={0.96}
+              style={styles.source}
+            >
+              <Text style={styles.sourceText} numberOfLines={1}>
+                {source.title}
+              </Text>
+            </PressableScale>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+});
+
 const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFill, zIndex: 100 },
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.58)" },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: colors.scrim },
   positioner: { flex: 1, justifyContent: "flex-end" },
   sheet: {
-    height: "85%",
+    ...surfaces.sheet,
+    height: "86%",
     overflow: "hidden",
     backgroundColor: "transparent",
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.10)",
   },
   sheetTint: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(8,10,14,0.88)",
+    // The dark blur tint lifts everything toward gray. Keep the sheet below its
+    // cards in brightness so the surface hierarchy still reads correctly.
+    backgroundColor: "rgba(8,9,10,0.93)",
+  },
+  handle: {
+    alignSelf: "center",
+    width: 36,
+    height: 4,
+    marginTop: 8,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfacePressed,
   },
   header: {
-    minHeight: 66,
+    minHeight: 60,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 18,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    gap: 8,
+    paddingHorizontal: 16,
   },
-  headerActions: { flexDirection: "row", gap: 20 },
-  title: { color: colors.text, fontSize: 17, fontWeight: "800" },
-  subtitle: { color: colors.accent, fontSize: 11, marginTop: 2 },
+  headerCopy: { flex: 1 },
+  title: { ...typography.title, fontSize: 17, color: colors.text },
+  subtitle: { ...typography.caption, color: colors.dim },
   quote: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
     marginHorizontal: 14,
-    marginTop: 10,
-    padding: 12,
+    marginBottom: 6,
+    paddingLeft: 12,
+    paddingVertical: 9,
+    paddingRight: 4,
     borderRadius: radii.medium,
-    borderLeftWidth: 3,
+    borderLeftWidth: 2,
     borderLeftColor: colors.accent,
-    backgroundColor: "rgba(124,58,237,0.12)",
+    backgroundColor: colors.accentSoft,
   },
-  quoteLabel: {
-    color: colors.accent,
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
-  },
+  quoteCopy: { flex: 1 },
+  quoteLabel: { ...typography.micro, color: colors.accent },
   quoteText: {
+    ...typography.caption,
     color: colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 4,
+    marginTop: 3,
   },
-  removeQuote: { color: colors.dim, fontSize: 11, marginTop: 5 },
   messages: { flex: 1 },
-  messageContent: { padding: 14, gap: 10 },
-  empty: {
-    color: colors.dim,
-    textAlign: "center",
-    marginTop: 48,
-    lineHeight: 22,
+  messageContent: { padding: 16, gap: 14 },
+  intro: { gap: 8 },
+  suggestions: { gap: 8, marginHorizontal: 8 },
+  suggestion: {
+    ...surfaces.control,
+    minHeight: 46,
+    justifyContent: "center",
+    paddingHorizontal: 15,
+    paddingVertical: 11,
   },
+  suggestionText: { ...typography.body, color: colors.textSecondary },
   userMessage: {
     alignSelf: "flex-end",
     maxWidth: "86%",
-    padding: 12,
-    borderRadius: 16,
-    borderBottomRightRadius: 4,
-    backgroundColor: "#7c3aed",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radii.large,
+    borderBottomRightRadius: 6,
+    backgroundColor: colors.surfacePressed,
   },
-  assistantMessage: {
-    alignSelf: "flex-start",
-    maxWidth: "94%",
-    padding: 12,
-    borderRadius: 16,
-    borderBottomLeftRadius: 4,
-    backgroundColor: "rgba(27,29,36,0.96)",
+  userText: {
+    ...typography.body,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.text,
+  },
+  assistantMessage: { alignSelf: "stretch" },
+  noteText: { ...typography.body, color: colors.muted },
+  errorText: { ...typography.body, color: colors.danger },
+  sources: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 8,
+  },
+  source: {
+    maxWidth: "100%",
+    minHeight: 30,
+    justifyContent: "center",
+    paddingHorizontal: 11,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceRaised,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  messageText: { color: colors.text, fontSize: 14, lineHeight: 21 },
-  sources: {
-    marginTop: 9,
-    paddingTop: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  sourceText: {
-    color: colors.accent,
-    fontSize: 11,
-    marginTop: 3,
-    textDecorationLine: "underline",
-  },
-  retryText: {
-    color: colors.accent,
-    fontSize: 12,
-    fontWeight: "700",
+  sourceText: { ...typography.micro, color: colors.textSecondary },
+  retry: {
+    alignSelf: "flex-start",
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     marginTop: 8,
+    paddingHorizontal: 12,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
+  retryText: { ...typography.caption, color: colors.textSecondary },
   workingStatus: {
     minHeight: 34,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
-  // The assistant bubble sizes itself from its contents. `flex: 1` gives this
-  // child no intrinsic width on Android, so the activity label collapses and
-  // only the spinner remains visible.
+  // The message sizes itself from its contents. `flex: 1` gives this child no
+  // intrinsic width on Android, so the activity label collapses and only the
+  // spinner remains visible.
   workingCopy: { flexShrink: 1 },
-  workingText: { color: colors.textSecondary, fontSize: 13 },
-  workingDetail: { color: colors.dim, fontSize: 10, marginTop: 2 },
+  workingText: {
+    ...typography.caption,
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  workingDetail: { ...typography.micro, color: colors.dim, marginTop: 2 },
   composer: {
     flexDirection: "row",
     alignItems: "flex-end",
-    gap: 8,
+    gap: 6,
     marginHorizontal: 12,
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: "rgba(27,29,36,0.96)",
+    marginTop: 4,
+    padding: 5,
+    borderRadius: 24,
+    backgroundColor: colors.surfaceRaised,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
+    borderColor: colors.border,
+    borderTopColor: colors.highlight,
   },
-  toolButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  toolButtonActive: { backgroundColor: "rgba(124,58,237,0.18)" },
+  toolButton: { borderRadius: radii.pill },
   input: {
+    ...typography.body,
     flex: 1,
-    minHeight: 36,
-    maxHeight: 112,
+    minHeight: 38,
+    maxHeight: 116,
     color: colors.text,
-    paddingHorizontal: 4,
-    paddingTop: 8,
+    paddingHorizontal: 10,
+    paddingTop: 9,
+    paddingBottom: 9,
   },
   send: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.text,
   },
-  searchHint: {
-    color: colors.dim,
-    fontSize: 10,
-    textAlign: "center",
-    marginTop: 5,
+  sendDisabled: { opacity: 0.3 },
+  stop: {
+    backgroundColor: colors.surfacePressed,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
   },
   searchWarning: {
     flexDirection: "row",
@@ -571,36 +754,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 5,
     marginHorizontal: 16,
-    marginTop: 5,
+    marginTop: 6,
   },
   searchWarningText: {
+    ...typography.micro,
     flexShrink: 1,
-    color: colors.text,
-    fontSize: 10,
-    textAlign: "center",
-  },
-  setup: {
-    margin: 18,
-    padding: 18,
-    borderRadius: radii.large,
-    backgroundColor: colors.surface,
-  },
-  setupTitle: { color: colors.text, fontSize: 17, fontWeight: "700" },
-  setupBody: {
     color: colors.muted,
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 7,
-  },
-  setupButton: {
-    marginTop: 14,
-    padding: 12,
-    borderRadius: radii.medium,
-    backgroundColor: colors.text,
-  },
-  setupButtonText: {
-    color: colors.background,
     textAlign: "center",
-    fontWeight: "700",
   },
+  setup: { flex: 1, paddingBottom: 64 },
 });

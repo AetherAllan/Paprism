@@ -2,14 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   Modal,
-  Pressable,
   SectionList,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
-import Search from "lucide-react-native/icons/search";
 import X from "lucide-react-native/icons/x";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,7 +16,10 @@ import {
   toggleCategorySelection,
   type CategoryOption,
 } from "@/lib/categories";
-import { colors, radii } from "@/shared/theme";
+import { colors, spacing, typography } from "@/shared/theme";
+import { Button } from "@/shared/ui/Button";
+import { IconButton } from "@/shared/ui/IconButton";
+import { SearchField } from "@/shared/ui/SearchField";
 import { categoryGroupLabel, categoryLabel } from "./categoryLabels";
 import { CategoryRow, SelectedCategoryChip } from "./CategoryPickerRows";
 
@@ -92,50 +92,46 @@ export function CategoryPicker({
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      presentationStyle="fullScreen"
+      statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={onClose}
     >
       <View
         style={[
           styles.root,
           {
-            paddingTop: insets.top + 8,
-            paddingBottom: Math.max(insets.bottom, 12),
+            paddingTop: Math.max(insets.top, 8) + 2,
+            paddingBottom: Math.max(insets.bottom, 12) + 8,
           },
         ]}
       >
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>{t("categories.title")}</Text>
+          <View style={styles.headerCopy}>
+            <Text accessibilityRole="header" style={styles.title}>
+              {t("categories.title")}
+            </Text>
             <Text style={styles.count}>
               {t("categories.selectedCount", { count: draft.length })}
             </Text>
           </View>
-          <Pressable
-            accessibilityLabel={t("common.close")}
+          <IconButton
+            icon={X}
+            iconSize={19}
+            color={colors.muted}
+            label={t("common.close")}
             onPress={onClose}
-            hitSlop={10}
-            style={({ pressed }) => [styles.close, pressed && styles.pressed]}
-          >
-            <X color={colors.muted} size={20} strokeWidth={1.8} />
-          </Pressable>
+          />
         </View>
 
         <Text style={styles.hint}>{t("categories.hint")}</Text>
 
-        <View style={styles.searchShell}>
-          <Search color={colors.dim} size={18} strokeWidth={1.8} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder={t("categories.search")}
-            placeholderTextColor={colors.dim}
-            autoCorrect={false}
-            autoCapitalize="none"
-            clearButtonMode="while-editing"
-            style={styles.search}
-          />
-        </View>
+        <SearchField
+          value={query}
+          onChangeText={setQuery}
+          placeholder={t("categories.search")}
+          style={styles.searchField}
+        />
 
         <FlatList
           horizontal
@@ -194,15 +190,12 @@ export function CategoryPicker({
           removeClippedSubviews
         />
 
-        <Pressable
+        <Button
+          variant="primary"
+          label={t("common.apply")}
           onPress={apply}
-          style={({ pressed }) => [
-            styles.apply,
-            pressed && styles.applyPressed,
-          ]}
-        >
-          <Text style={styles.applyText}>{t("common.apply")}</Text>
-        </Pressable>
+          style={styles.apply}
+        />
       </View>
     </Modal>
   );
@@ -225,42 +218,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginBottom: 10,
+    paddingLeft: spacing.gutter,
+    paddingRight: spacing.gutter - 4,
+    marginBottom: 8,
   },
-  title: { color: colors.text, fontSize: 20, fontWeight: "700" },
-  count: { color: colors.dim, fontSize: 12, marginTop: 2 },
+  headerCopy: { flex: 1 },
+  title: { ...typography.headline, color: colors.text },
+  count: { ...typography.caption, ...typography.numeric, color: colors.dim },
   hint: {
+    ...typography.caption,
     color: colors.dim,
-    fontSize: 12,
-    lineHeight: 17,
-    marginHorizontal: 20,
-    marginBottom: 10,
+    marginHorizontal: spacing.gutter,
+    marginBottom: 12,
   },
-  close: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.medium,
-    backgroundColor: colors.surfaceRaised,
-  },
-  searchShell: {
-    minHeight: 46,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    marginHorizontal: 16,
-    paddingHorizontal: 13,
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radii.medium,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  search: { flex: 1, color: colors.text, fontSize: 15, paddingVertical: 10 },
+  searchField: { marginHorizontal: 16 },
   selectedList: {
     flexGrow: 0,
-    minHeight: 54,
+    minHeight: 46,
     marginVertical: 10,
   },
   selectedContent: {
@@ -272,25 +246,21 @@ const styles = StyleSheet.create({
   categoryList: { flex: 1 },
   list: { paddingHorizontal: 16, paddingBottom: 12 },
   group: {
+    ...typography.caption,
     color: colors.dim,
-    fontSize: 12,
-    fontWeight: "600",
     paddingHorizontal: 4,
-    paddingTop: 13,
-    paddingBottom: 7,
+    paddingTop: 14,
+    paddingBottom: 8,
     backgroundColor: colors.background,
   },
-  empty: { color: colors.dim, textAlign: "center", marginTop: 32 },
+  empty: {
+    ...typography.body,
+    color: colors.dim,
+    textAlign: "center",
+    marginTop: 32,
+  },
   apply: {
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
     marginHorizontal: 16,
     marginTop: 10,
-    borderRadius: radii.medium,
-    backgroundColor: colors.text,
   },
-  applyPressed: { opacity: 0.82 },
-  applyText: { color: colors.inverse, fontSize: 15, fontWeight: "700" },
-  pressed: { opacity: 0.82 },
 });

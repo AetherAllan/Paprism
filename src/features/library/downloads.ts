@@ -7,6 +7,7 @@ import {
   getInfoAsync,
   getContentUriAsync,
   makeDirectoryAsync,
+  moveAsync,
   readAsStringAsync,
   StorageAccessFramework,
   writeAsStringAsync,
@@ -19,6 +20,11 @@ import {
   setDownloadsDirUri,
   type PdfDownloadEntry,
 } from "./library";
+
+// "%PDF-" encoded as Base64. Reading six bytes yields eight Base64 characters,
+// the first six of which depend only on the magic number.
+const PDF_MAGIC_BYTES = 6;
+const PDF_MAGIC_BASE64 = "JVBERi";
 
 function appDownloadsDir(): string {
   if (!documentDirectory) {
@@ -73,6 +79,15 @@ async function copyToSaf(
   return dest;
 }
 
+async function isPdfFile(uri: string): Promise<boolean> {
+  const header = await readAsStringAsync(uri, {
+    encoding: EncodingType.Base64,
+    position: 0,
+    length: PDF_MAGIC_BYTES,
+  });
+  return header.startsWith(PDF_MAGIC_BASE64);
+}
+
 /**
  * Download PDF via arXiv rate limiter.
  * Always keeps a copy under app Documents/Downloads/.
@@ -85,18 +100,36 @@ export async function downloadPaperPdf(
   const localUri = localPdfPath(paper.arxivId);
 
   const existing = await getInfoAsync(localUri);
-  if (!existing.exists) {
-    await scheduleArxiv(async () => {
-      const res = await downloadAsync(paper.pdfUrl, localUri, {
-        headers: {
-          "User-Agent":
-            "Paprism/1.0 (Android; educational; contact: local-dev)",
-        },
+  // Older builds wrote straight to the final path, which could leave an error
+  // page behind. Re-download anything that is not actually a PDF.
+  const reusable = existing.exists && (await isPdfFile(localUri));
+  if (!reusable) {
+    // Only a verified file may reach the final path. A failed or interrupted
+    // download must not be mistaken for a finished PDF on the next attempt.
+    const partialUri = `${localUri}.part`;
+    try {
+      await scheduleArxiv(async () => {
+        const res = await downloadAsync(paper.pdfUrl, partialUri, {
+          headers: {
+            "User-Agent":
+              "Paprism/1.0 (Android; educational; contact: local-dev)",
+          },
+        });
+        if (res.status !== 200) {
+          throw new Error(`Download failed (${res.status})`);
+        }
       });
-      if (res.status !== 200) {
-        throw new Error(`Download failed (${res.status})`);
+      if (!(await isPdfFile(partialUri))) {
+        throw new Error("arXiv did not return a PDF for this paper");
       }
-    });
+      await deleteAsync(localUri, { idempotent: true });
+      await moveAsync({ from: partialUri, to: localUri });
+    } catch (error) {
+      await deleteAsync(partialUri, { idempotent: true }).catch(
+        () => undefined,
+      );
+      throw error;
+    }
   }
 
   let exportUri: string | undefined;

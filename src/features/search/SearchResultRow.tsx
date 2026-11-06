@@ -1,9 +1,14 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { memo, useMemo } from "react";
+import { StyleSheet, Text, View } from "react-native";
 import Bookmark from "lucide-react-native/icons/bookmark";
 import BookmarkCheck from "lucide-react-native/icons/bookmark-check";
 import Download from "lucide-react-native/icons/download";
+import FileCheck from "lucide-react-native/icons/file-check";
 import { useTranslation } from "react-i18next";
-import { colors, radii } from "@/shared/theme";
+import { formatAuthors, formatPaperDate } from "@/shared/format";
+import { colors, surfaces, typography } from "@/shared/theme";
+import { IconButton } from "@/shared/ui/IconButton";
+import { PressableScale } from "@/shared/ui/PressableScale";
 import type { Paper } from "@/types/paper";
 
 type Props = {
@@ -15,7 +20,7 @@ type Props = {
   onDownload: (paper: Paper) => void;
 };
 
-export function SearchResultRow({
+export const SearchResultRow = memo(function SearchResultRow({
   paper,
   saved,
   downloaded,
@@ -23,84 +28,79 @@ export function SearchResultRow({
   onToggleSave,
   onDownload,
 }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const meta = useMemo(
+    () =>
+      [
+        formatPaperDate(paper.published, i18n.language),
+        paper.categories.slice(0, 3).join(" · "),
+      ]
+        .filter(Boolean)
+        .join("  ·  "),
+    [i18n.language, paper.categories, paper.published],
+  );
 
   return (
-    <Pressable onPress={() => onRead(paper)} style={styles.result}>
+    <PressableScale
+      accessibilityLabel={paper.title}
+      accessibilityHint={t("common.read")}
+      onPress={() => onRead(paper)}
+      scaleTo={0.985}
+      style={[surfaces.card, styles.result]}
+    >
+      {meta ? (
+        <Text numberOfLines={1} style={styles.meta}>
+          {meta}
+        </Text>
+      ) : null}
       <Text style={styles.title}>{paper.title}</Text>
       <Text style={styles.authors} numberOfLines={1}>
-        {paper.authors.slice(0, 3).join(", ")}
+        {formatAuthors(paper.authors)}
       </Text>
       <Text style={styles.abstract} numberOfLines={3}>
         {paper.abstract}
       </Text>
       <View style={styles.actions}>
-        <Text style={styles.read}>{t("common.read")}</Text>
-        <Pressable
-          accessibilityLabel={t(saved ? "common.saved" : "common.save")}
-          hitSlop={8}
-          onPress={(event) => {
-            event.stopPropagation?.();
-            onToggleSave(paper);
-          }}
-          style={styles.actionButton}
-        >
-          {saved ? (
-            <BookmarkCheck color={colors.text} size={18} strokeWidth={1.8} />
-          ) : (
-            <Bookmark color={colors.muted} size={18} strokeWidth={1.8} />
-          )}
-        </Pressable>
-        <Pressable
-          accessibilityLabel={t(
-            downloaded ? "common.downloaded" : "common.download",
-          )}
-          hitSlop={8}
-          onPress={(event) => {
-            event.stopPropagation?.();
-            onDownload(paper);
-          }}
-          style={styles.actionButton}
-        >
-          <Download
-            color={downloaded ? colors.text : colors.muted}
-            size={18}
-            strokeWidth={1.8}
-          />
-        </Pressable>
+        <IconButton
+          icon={saved ? BookmarkCheck : Bookmark}
+          iconSize={17}
+          color={saved ? colors.accent : colors.muted}
+          label={t(saved ? "common.saved" : "common.save")}
+          size={40}
+          onPress={() => onToggleSave(paper)}
+        />
+        <IconButton
+          icon={downloaded ? FileCheck : Download}
+          iconSize={17}
+          color={downloaded ? colors.text : colors.muted}
+          label={t(downloaded ? "common.downloaded" : "common.download")}
+          size={40}
+          onPress={() => onDownload(paper)}
+        />
       </View>
-    </Pressable>
+    </PressableScale>
   );
-}
+});
 
 const styles = StyleSheet.create({
   result: {
-    padding: 14,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
+    paddingVertical: 15,
+    paddingHorizontal: 15,
     gap: 5,
   },
-  title: {
-    color: colors.text,
-    fontSize: 16,
-    lineHeight: 21,
-    fontWeight: "700",
+  meta: { ...typography.caption, ...typography.numeric, color: colors.dim },
+  title: { ...typography.title, color: colors.text },
+  authors: { ...typography.caption, fontSize: 13, color: colors.textSecondary },
+  abstract: {
+    ...typography.caption,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.muted,
   },
-  authors: { color: colors.muted, fontSize: 13 },
-  abstract: { color: colors.muted, fontSize: 13, lineHeight: 19 },
   actions: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 18,
+    justifyContent: "flex-end",
+    gap: 8,
     marginTop: 6,
   },
-  actionButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  read: { flex: 1, color: colors.text, fontSize: 13, fontWeight: "600" },
 });

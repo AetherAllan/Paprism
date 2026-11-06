@@ -27,6 +27,8 @@ import {
   type SavedEntry,
 } from "./library";
 
+const HISTORY_REFRESH_MS = 60_000;
+
 export class PdfMetadataError extends Error {
   override name = "PdfMetadataError";
 }
@@ -127,6 +129,15 @@ export function useLibrary() {
 
   const recordHistory = useCallback(
     async (paper: Paper) => {
+      // History is one JSON blob of up to 200 papers. Skip the rewrite when the
+      // paper is already the most recent entry, e.g. opening the visible card.
+      const latest = historyQueue.value()[0];
+      if (
+        latest?.arxivId === paper.arxivId &&
+        Date.now() - latest.viewedAt < HISTORY_REFRESH_MS
+      ) {
+        return;
+      }
       await historyQueue.mutate(
         (previous) => upsertHistory(previous, paper),
         persistHistory,
@@ -231,6 +242,33 @@ export function useLibrary() {
   );
   const clearRecoveryWarning = useCallback(() => setRecoveryWarning(false), []);
 
+  // These lookups are passed down to every card and result row. Their identity
+  // only changes when the underlying set does, so memoized rows can skip work.
+  const isSaved = useCallback(
+    (arxivId: string) => savedIds.has(arxivId),
+    [savedIds],
+  );
+  const hasOfflinePaper = useCallback(
+    (arxivId: string) => offlineById.has(arxivId),
+    [offlineById],
+  );
+  const hasPdf = useCallback(
+    (arxivId: string) => pdfById.has(arxivId),
+    [pdfById],
+  );
+  const getOfflinePaper = useCallback(
+    (arxivId: string) => offlineById.get(arxivId),
+    [offlineById],
+  );
+  const getPdf = useCallback(
+    (arxivId: string) => pdfById.get(arxivId),
+    [pdfById],
+  );
+  const cancelDownload = useCallback(() => {
+    const task = downloadSlot.current();
+    if (task?.kind === "reader") task.controller.abort();
+  }, [downloadSlot]);
+
   return {
     ready,
     recoveryWarning,
@@ -243,11 +281,11 @@ export function useLibrary() {
     downloadTask,
     downloadingId: downloadTask?.arxivId ?? null,
     canCancelDownload: downloadTask?.kind === "reader",
-    isSaved: (arxivId: string) => savedIds.has(arxivId),
-    hasOfflinePaper: (arxivId: string) => offlineById.has(arxivId),
-    hasPdf: (arxivId: string) => pdfById.has(arxivId),
-    getOfflinePaper: (arxivId: string) => offlineById.get(arxivId),
-    getPdf: (arxivId: string) => pdfById.get(arxivId),
+    isSaved,
+    hasOfflinePaper,
+    hasPdf,
+    getOfflinePaper,
+    getPdf,
     toggleSave,
     unsave,
     recordHistory,
@@ -257,9 +295,6 @@ export function useLibrary() {
     openPdf,
     deleteOffline,
     deleteDownloads,
-    cancelDownload: () => {
-      const task = downloadSlot.current();
-      if (task?.kind === "reader") task.controller.abort();
-    },
+    cancelDownload,
   };
 }

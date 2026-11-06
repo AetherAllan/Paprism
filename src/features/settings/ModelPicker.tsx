@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Check from "lucide-react-native/icons/check";
 import { useTranslation } from "react-i18next";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { colors, radii } from "@/shared/theme";
+import { colors, radii, typography } from "@/shared/theme";
+import { PressableScale } from "@/shared/ui/PressableScale";
+import { SearchField } from "@/shared/ui/SearchField";
 import { searchModels, type ModelOption } from "./providerCore";
 
 export function ModelPicker({
@@ -26,26 +28,22 @@ export function ModelPicker({
 
   return (
     <View style={styles.root}>
-      <TextInput
+      <SearchField
         value={query}
         onChangeText={setQuery}
         placeholder={t("provider.searchModels")}
-        placeholderTextColor={colors.dim}
-        style={styles.input}
+        style={styles.search}
       />
       {visibleModels.map((model) => {
         const selected = model.id === selectedId;
         return (
-          <Pressable
+          <PressableScale
             key={model.id}
             accessibilityRole="radio"
             accessibilityState={{ checked: selected }}
-            style={({ pressed }) => [
-              styles.modelRow,
-              selected && styles.modelRowSelected,
-              pressed && styles.modelRowPressed,
-            ]}
             onPress={() => onSelect(model.id)}
+            scaleTo={0.985}
+            style={[styles.modelRow, selected && styles.modelRowSelected]}
           >
             <View style={styles.modelMain}>
               <Text style={styles.modelName} numberOfLines={1}>
@@ -58,10 +56,10 @@ export function ModelPicker({
             </View>
             {selected ? (
               <Animated.View entering={FadeIn.duration(140)}>
-                <Check color={colors.text} size={19} strokeWidth={2.2} />
+                <Check color={colors.accent} size={18} strokeWidth={2.2} />
               </Animated.View>
             ) : null}
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>
@@ -69,32 +67,21 @@ export function ModelPicker({
 }
 
 const styles = StyleSheet.create({
-  root: { marginTop: 8 },
-  input: {
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radii.medium,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    color: colors.text,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 14,
-    marginBottom: 4,
-  },
+  root: { marginTop: 4 },
+  search: { marginBottom: 6 },
   modelRow: {
     flexDirection: "row",
     alignItems: "center",
     minHeight: 58,
     gap: 10,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: radii.small,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  modelRowSelected: { backgroundColor: colors.surfacePressed },
-  modelRowPressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
+  modelRowSelected: { backgroundColor: colors.surfaceRaised },
   modelMain: { flex: 1 },
-  modelName: { color: colors.text, fontSize: 14, fontWeight: "600" },
-  modelId: { color: colors.dim, fontSize: 12, marginTop: 3 },
+  modelName: { ...typography.label, color: colors.text },
+  modelId: { ...typography.caption, color: colors.dim, marginTop: 2 },
 });

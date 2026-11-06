@@ -35,6 +35,11 @@ export function usePaperFeed(categories: string[]) {
   const key = catsKey(categories);
   const restorePaperId = useRef<string | null>(null);
 
+  const papersRef = useRef(papers);
+  papersRef.current = papers;
+  const indexRef = useRef(index);
+  indexRef.current = index;
+
   useEffect(() => {
     papersLen.current = papers.length;
   }, [papers.length]);
@@ -72,6 +77,12 @@ export function usePaperFeed(categories: string[]) {
       });
 
       if (gen !== generation.current) return;
+
+      // arXiv occasionally answers with a positive total but no entries. That
+      // is a failed response, and must not read as "no papers exist".
+      if (isReset && page.papers.length === 0 && page.total > 0) {
+        throw new Error(i18n.t("common.failedLoadPapers"));
+      }
 
       total.current = page.total;
       nextStart.current = start + page.papers.length;
@@ -167,13 +178,19 @@ export function usePaperFeed(categories: string[]) {
     }
   }, [index, papers.length, status, loadMore]);
 
+  // Stable across pagination: every mounted card holds this callback, and
+  // appending a page must not re-render them.
   const onIndexChange = useCallback(
     (next: number) => {
+      if (next === indexRef.current) return;
       setIndex(next);
-      const paper = papers[next];
-      if (paper) void saveFeedPaperId(key, paper.arxivId);
+      const paper = papersRef.current[next];
+      if (paper) {
+        // Position memory is a convenience. A failed write must stay silent.
+        void saveFeedPaperId(key, paper.arxivId).catch(() => undefined);
+      }
     },
-    [key, papers],
+    [key],
   );
 
   const retry = useCallback(() => {

@@ -8,6 +8,7 @@ const BASE = "https://export.arxiv.org/api/query";
 export const ARXIV_PAGE_SIZE = 20;
 /** Official ToU: no more than one request every three seconds. */
 const MIN_GAP_MS = 3000;
+const REQUEST_TIMEOUT_MS = 30_000;
 const USER_AGENT = "Paprism/1.0 (Android; educational; contact: local-dev)";
 
 const limiter = new RateLimiter(MIN_GAP_MS);
@@ -28,6 +29,7 @@ export type FetchPageOptions = {
   query?: string;
   sortBy?: "relevance" | "lastUpdatedDate" | "submittedDate";
   signal?: AbortSignal;
+  timeoutMs?: number;
 };
 
 export async function fetchPaperPage(options: FetchPageOptions = {}): Promise<{
@@ -42,6 +44,7 @@ export async function fetchPaperPage(options: FetchPageOptions = {}): Promise<{
     query,
     sortBy = "submittedDate",
     signal,
+    timeoutMs = REQUEST_TIMEOUT_MS,
   } = options;
 
   const searchQuery = query ?? categoriesToSearchQuery(categories);
@@ -57,20 +60,43 @@ export async function fetchPaperPage(options: FetchPageOptions = {}): Promise<{
   const url = `${BASE}?${params.toString()}`;
 
   return limiter.schedule(async () => {
-    const res = await fetch(url, {
-      headers: {
-        Accept: "application/atom+xml",
-        "User-Agent": USER_AGENT,
-      },
-      signal,
-    });
+    // React Native's HTTP client has no default read timeout, and the limiter
+    // runs requests one at a time. Without a deadline, a single stalled socket
+    // would block the feed, search, and reader for the rest of the session.
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (signal?.aborted) controller.abort();
+    else signal?.addEventListener("abort", abort, { once: true });
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Accept: "application/atom+xml",
+          "User-Agent": USER_AGENT,
+        },
+        signal: controller.signal,
+      });
 
-    if (!res.ok) {
-      throw new Error(`arXiv HTTP ${res.status}`);
+      if (!res.ok) {
+        throw new Error(`arXiv HTTP ${res.status}`);
+      }
+
+      const xml = await res.text();
+      return parseAtomFeed(xml, start);
+    } catch (error) {
+      // Callers ignore AbortError for navigation. A deadline must stay visible.
+      if (timedOut && !signal?.aborted) {
+        throw new Error("arXiv request timed out");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort", abort);
     }
-
-    const xml = await res.text();
-    return parseAtomFeed(xml, start);
   }, signal);
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import X from "lucide-react-native/icons/x";
-import { colors, radii } from "@/shared/theme";
+import { colors, radii, typography } from "@/shared/theme";
 
 const SAVED_KEY_MASK = "••••••••••••";
 
@@ -49,6 +49,7 @@ export function SecretField({
           value={inputValue}
           placeholder={placeholder}
           placeholderTextColor={colors.dim}
+          selectionColor={colors.accent}
           secureTextEntry
           selectTextOnFocus={showingSavedMask}
           autoCapitalize="none"
@@ -71,7 +72,7 @@ export function SecretField({
               pressed && styles.clearPressed,
             ]}
           >
-            <X color={colors.muted} size={17} strokeWidth={1.8} />
+            <X color={colors.muted} size={16} strokeWidth={1.8} />
           </Pressable>
         ) : null}
       </View>
@@ -80,23 +81,24 @@ export function SecretField({
 }
 
 const styles = StyleSheet.create({
-  field: { marginBottom: 14 },
-  label: { color: colors.muted, fontSize: 12, marginBottom: 6 },
+  field: { marginBottom: 16 },
+  label: { ...typography.caption, color: colors.muted, marginBottom: 7 },
   shell: {
-    minHeight: 47,
+    minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.surfaceRaised,
     borderRadius: radii.medium,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
+    borderTopColor: colors.borderStrong,
   },
   input: {
+    ...typography.body,
     flex: 1,
     color: colors.text,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 14,
   },
   clear: {
     width: 42,

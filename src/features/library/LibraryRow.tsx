@@ -1,26 +1,40 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import Trash2 from "lucide-react-native/icons/trash-2";
-import { colors, radii } from "@/shared/theme";
+import { memo } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import type { LucideIcon } from "lucide-react-native";
+import { colors, surfaces, typography } from "@/shared/theme";
+import { IconButton } from "@/shared/ui/IconButton";
+import { PressableScale } from "@/shared/ui/PressableScale";
 
-type Props = {
+type Props<T> = {
+  item: T;
   title: string;
   subtitle: string;
   meta: string;
-  onPress: () => void;
+  onPress: (item: T) => void;
   actionLabel?: string;
-  onAction?: () => void;
+  actionIcon?: LucideIcon;
+  actionColor?: string;
+  onAction?: (item: T) => void;
 };
 
-export function LibraryRow({
+function LibraryRowInner<T>({
+  item,
   title,
   subtitle,
   meta,
   onPress,
   actionLabel,
+  actionIcon,
+  actionColor,
   onAction,
-}: Props) {
+}: Props<T>) {
   return (
-    <Pressable onPress={onPress} style={styles.row}>
+    <PressableScale
+      accessibilityLabel={title}
+      onPress={() => onPress(item)}
+      scaleTo={0.985}
+      style={[surfaces.card, styles.row]}
+    >
       <View style={styles.main}>
         <Text style={styles.title} numberOfLines={2}>
           {title}
@@ -30,48 +44,40 @@ export function LibraryRow({
             {subtitle}
           </Text>
         ) : null}
-        <Text style={styles.meta}>{meta}</Text>
+        {meta ? <Text style={styles.meta}>{meta}</Text> : null}
       </View>
-      {actionLabel && onAction ? (
-        <Pressable
-          accessibilityLabel={actionLabel}
-          hitSlop={8}
-          onPress={(event) => {
-            event.stopPropagation?.();
-            onAction();
-          }}
-          style={styles.action}
-        >
-          <Trash2 color={colors.muted} size={17} strokeWidth={1.8} />
-        </Pressable>
+      {actionLabel && actionIcon && onAction ? (
+        <IconButton
+          icon={actionIcon}
+          iconSize={17}
+          label={actionLabel}
+          color={actionColor ?? colors.muted}
+          size={40}
+          onPress={() => onAction(item)}
+        />
       ) : null}
-    </Pressable>
+    </PressableScale>
   );
 }
+
+export const LibraryRow = memo(LibraryRowInner) as typeof LibraryRowInner;
 
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    minHeight: 84,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: radii.medium,
+    minHeight: 86,
+    paddingVertical: 14,
+    paddingHorizontal: 15,
   },
   main: { flex: 1, gap: 3 },
-  title: { color: colors.text, fontSize: 15, fontWeight: "600" },
-  subtitle: { color: colors.muted, fontSize: 13 },
-  meta: { color: colors.dim, fontSize: 12 },
-  action: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.small,
-    backgroundColor: colors.surfaceRaised,
+  title: { ...typography.title, fontSize: 15, color: colors.text },
+  subtitle: { ...typography.caption, fontSize: 13, color: colors.muted },
+  meta: {
+    ...typography.caption,
+    ...typography.numeric,
+    color: colors.dim,
+    marginTop: 2,
   },
 });

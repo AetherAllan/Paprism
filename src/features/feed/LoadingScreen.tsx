@@ -1,12 +1,5 @@
 import { useEffect } from "react";
-import {
-  StyleSheet,
-  View,
-  useWindowDimensions,
-  type DimensionValue,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { StyleSheet, View, type DimensionValue } from "react-native";
 import { useTranslation } from "react-i18next";
 import Animated, {
   Easing,
@@ -17,176 +10,103 @@ import Animated, {
   useSharedValue,
   withRepeat,
   withTiming,
-  type AnimatedStyle,
 } from "react-native-reanimated";
-import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radii } from "@/shared/theme";
+import { colors, radii, spacing } from "@/shared/theme";
 
-const SHIMMER_WIDTH = 112;
-const SHIMMER_DURATION_MS = 1_650;
+const PULSE_DURATION_MS = 1_150;
+const ABSTRACT_LINES = [96, 92, 98, 86, 94, 78, 90, 62];
 
-type SkeletonBlockProps = {
-  width?: DimensionValue;
-  height: number;
-  shimmerStyle: AnimatedStyle<ViewStyle>;
-  style?: StyleProp<ViewStyle>;
-};
-
-function SkeletonBlock({
+function Line({
   width,
-  height,
-  shimmerStyle,
-  style,
-}: SkeletonBlockProps) {
-  return (
-    <View
-      accessible={false}
-      style={[
-        styles.block,
-        { height },
-        width !== undefined && { width },
-        style,
-      ]}
-    >
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.shimmer, shimmerStyle]}
-      >
-        <Svg width={SHIMMER_WIDTH} height="100%">
-          <Defs>
-            <LinearGradient id="feed-shimmer" x1="0" y1="0" x2="1" y2="0">
-              <Stop offset="0" stopColor="#ffffff" stopOpacity="0" />
-              <Stop offset="0.5" stopColor="#ffffff" stopOpacity="0.085" />
-              <Stop offset="1" stopColor="#ffffff" stopOpacity="0" />
-            </LinearGradient>
-          </Defs>
-          <Rect
-            x="0"
-            y="0"
-            width={SHIMMER_WIDTH}
-            height="100%"
-            fill="url(#feed-shimmer)"
-          />
-        </Svg>
-      </Animated.View>
-    </View>
-  );
+  height = 12,
+}: {
+  width: DimensionValue;
+  height?: number;
+}) {
+  return <View style={[styles.line, { width, height }]} />;
 }
 
-export function LoadingScreen() {
+/**
+ * The placeholder mirrors the paper card's layout so content appears in place.
+ * One shared opacity pulse animates the whole skeleton in a single view.
+ */
+export function LoadingScreen({
+  showHeader = false,
+}: {
+  /** Include the feed header's outline, for use before the header can render. */
+  showHeader?: boolean;
+}) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
-  const progress = useSharedValue(0);
+  const pulse = useSharedValue(0);
 
   useEffect(() => {
     if (reduceMotion) {
-      progress.value = 0;
+      pulse.value = 0.5;
       return;
     }
-    progress.value = withRepeat(
+    pulse.value = withRepeat(
       withTiming(1, {
-        duration: SHIMMER_DURATION_MS,
-        // A linear sweep reads as continuous loading. Starting the highlight
-        // half-visible avoids a dead pause before it first enters the screen.
-        easing: Easing.linear,
+        duration: PULSE_DURATION_MS,
+        easing: Easing.inOut(Easing.sin),
       }),
       -1,
-      false,
+      true,
     );
-    return () => cancelAnimation(progress);
-  }, [progress, reduceMotion]);
+    return () => cancelAnimation(pulse);
+  }, [pulse, reduceMotion]);
 
-  const shimmerStyle = useAnimatedStyle(() => ({
-    opacity: reduceMotion ? 0 : 1,
-    transform: [
-      {
-        translateX: interpolate(
-          progress.value,
-          [0, 1],
-          [-SHIMMER_WIDTH / 2, width],
-        ),
-      },
-    ],
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pulse.value, [0, 1], [0.42, 0.95]),
   }));
 
   return (
     <View
       accessibilityLabel={t("common.loadingPapers")}
       accessibilityRole="progressbar"
-      style={[styles.root, { paddingBottom: insets.bottom + 16 }]}
+      style={styles.root}
     >
-      <View style={styles.body} importantForAccessibility="no-hide-descendants">
-        <SkeletonBlock
-          width="31%"
-          height={12}
-          shimmerStyle={shimmerStyle}
-          style={styles.date}
-        />
-        <SkeletonBlock
-          width="48%"
-          height={12}
-          shimmerStyle={shimmerStyle}
-          style={styles.categories}
-        />
-
-        <View style={styles.titleGroup}>
-          <SkeletonBlock width="96%" height={23} shimmerStyle={shimmerStyle} />
-          <SkeletonBlock width="88%" height={23} shimmerStyle={shimmerStyle} />
-          <SkeletonBlock width="64%" height={23} shimmerStyle={shimmerStyle} />
+      {showHeader ? (
+        <View
+          style={[styles.header, { paddingTop: Math.max(insets.top, 8) + 2 }]}
+        >
+          <View style={styles.headerTile} />
+          <View style={styles.headerCopy}>
+            <Line width="44%" height={14} />
+            <Line width="26%" height={10} />
+          </View>
+          <View style={styles.headerTile} />
         </View>
-
-        <View style={styles.authorGroup}>
-          <SkeletonBlock width="81%" height={14} shimmerStyle={shimmerStyle} />
-          <SkeletonBlock width="56%" height={14} shimmerStyle={shimmerStyle} />
-        </View>
-        <SkeletonBlock
-          width="27%"
-          height={11}
-          shimmerStyle={shimmerStyle}
-          style={styles.identifier}
-        />
-
-        <SkeletonBlock
-          width="15%"
-          height={11}
-          shimmerStyle={shimmerStyle}
-          style={styles.sectionLabel}
-        />
-        <View style={styles.abstractGroup}>
-          {[96, 92, 98, 86, 94, 78, 90].map((lineWidth, index) => (
-            <SkeletonBlock
-              key={`${lineWidth}-${index}`}
-              width={`${lineWidth}%`}
-              height={15}
-              shimmerStyle={shimmerStyle}
-            />
-          ))}
-        </View>
-      </View>
-
-      <View
-        style={styles.actions}
+      ) : null}
+      <Animated.View
         importantForAccessibility="no-hide-descendants"
+        style={[styles.card, { paddingBottom: insets.bottom + 14 }, pulseStyle]}
       >
-        <SkeletonBlock
-          height={48}
-          shimmerStyle={shimmerStyle}
-          style={styles.action}
-        />
-        <SkeletonBlock
-          height={48}
-          shimmerStyle={shimmerStyle}
-          style={[styles.action, styles.primaryAction]}
-        />
-        <SkeletonBlock
-          height={48}
-          shimmerStyle={shimmerStyle}
-          style={styles.action}
-        />
-      </View>
+        <View style={styles.body}>
+          <Line width="30%" height={11} />
+          <Line width="42%" height={11} />
+          <View style={styles.titleGroup}>
+            <Line width="96%" height={24} />
+            <Line width="88%" height={24} />
+            <Line width="62%" height={24} />
+          </View>
+          <Line width="46%" height={13} />
+          <Line width="24%" height={10} />
+          <View style={styles.abstractGroup}>
+            <Line width="12%" height={10} />
+            {ABSTRACT_LINES.map((lineWidth, index) => (
+              <Line key={index} width={`${lineWidth}%`} height={14} />
+            ))}
+          </View>
+        </View>
+        <View style={styles.actions}>
+          <View style={[styles.action, styles.primaryAction]} />
+          <View style={styles.action} />
+          <View style={styles.action} />
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -194,47 +114,54 @@ export function LoadingScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 12,
     backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    paddingHorizontal: spacing.gutter - 4,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  headerTile: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+  },
+  headerCopy: { flex: 1, gap: 7 },
+  card: {
+    flex: 1,
+    paddingHorizontal: spacing.gutter,
+    paddingTop: 18,
   },
   body: {
     flex: 1,
+    gap: 10,
     overflow: "hidden",
+    paddingRight: spacing.railGutter - spacing.gutter,
   },
-  block: {
-    overflow: "hidden",
-    borderRadius: radii.small,
+  line: {
+    borderRadius: radii.small - 4,
     backgroundColor: colors.surfaceRaised,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.035)",
   },
-  shimmer: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    width: SHIMMER_WIDTH,
-  },
-  date: { marginBottom: 12 },
-  categories: { marginBottom: 18 },
-  titleGroup: { gap: 10, marginBottom: 18 },
-  authorGroup: { gap: 8, marginBottom: 10 },
-  identifier: { marginBottom: 25 },
-  sectionLabel: { marginBottom: 12 },
-  abstractGroup: { gap: 10 },
+  titleGroup: { gap: 9, marginTop: 8, marginBottom: 8 },
+  abstractGroup: { gap: 11, marginTop: 16 },
   actions: {
     flexDirection: "row",
     gap: 8,
-    marginTop: 8,
+    paddingTop: 4,
   },
   action: {
     flex: 1,
-    width: "auto",
-    borderRadius: radii.medium,
+    height: 50,
+    borderRadius: radii.large - 2,
+    backgroundColor: colors.surfaceRaised,
   },
   primaryAction: {
-    flex: 1.2,
+    flex: 1.25,
     backgroundColor: colors.surfacePressed,
   },
 });

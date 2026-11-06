@@ -41,7 +41,12 @@ async function openAskDatabase(): Promise<SQLiteDatabase> {
 }
 
 export function getAskDatabase(): Promise<SQLiteDatabase> {
-  databasePromise ??= openAskDatabase();
+  // A failed open must not stay cached, or one transient error would disable
+  // chats and reading positions until the app restarts.
+  databasePromise ??= openAskDatabase().catch((error: unknown) => {
+    databasePromise = null;
+    throw error;
+  });
   return databasePromise;
 }
 
@@ -140,9 +145,9 @@ export async function resetAskAssistantMessage(id: string): Promise<void> {
 
 export async function insertAskSource(
   source: Omit<AskSource, "id">,
-): Promise<void> {
+): Promise<number> {
   const database = await getAskDatabase();
-  await database.runAsync(
+  const result = await database.runAsync(
     `INSERT INTO ask_sources(message_id, kind, title, url, quote, block_id)
      VALUES (?, ?, ?, ?, ?, ?)`,
     source.messageId,
@@ -152,6 +157,7 @@ export async function insertAskSource(
     source.quote ?? null,
     source.blockId ?? null,
   );
+  return result.lastInsertRowId;
 }
 
 export async function loadAskSources(arxivId: string): Promise<AskSource[]> {
@@ -230,24 +236,28 @@ export async function deleteStalePaperEmbeddings(
   );
 }
 
-export async function savePaperEmbedding(
+/** One transaction per batch: a commit per row is slow on a paper's worth of chunks. */
+export async function savePaperEmbeddings(
   arxivId: string,
   sourceHash: string,
   fingerprint: string,
-  chunkId: string,
-  vector: Uint8Array,
+  rows: { chunkId: string; vector: Uint8Array }[],
 ): Promise<void> {
   const database = await getAskDatabase();
-  await database.runAsync(
-    `INSERT OR REPLACE INTO paper_embeddings
-     (arxiv_id, source_hash, model_fingerprint, chunk_id, vector)
-     VALUES (?, ?, ?, ?, ?)`,
-    arxivId,
-    sourceHash,
-    fingerprint,
-    chunkId,
-    vector,
-  );
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    for (const { chunkId, vector } of rows) {
+      await transaction.runAsync(
+        `INSERT OR REPLACE INTO paper_embeddings
+         (arxiv_id, source_hash, model_fingerprint, chunk_id, vector)
+         VALUES (?, ?, ?, ?, ?)`,
+        arxivId,
+        sourceHash,
+        fingerprint,
+        chunkId,
+        vector,
+      );
+    }
+  });
 }
 
 export async function loadPaperEmbeddings(

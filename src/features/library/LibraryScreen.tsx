@@ -1,13 +1,22 @@
-import { useEffect, useRef } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { memo, useCallback, useEffect, useRef } from "react";
+import {
+  FlatList,
+  StyleSheet,
+  View,
+  type ListRenderItemInfo,
+} from "react-native";
 import Bookmark from "lucide-react-native/icons/bookmark";
+import BookmarkX from "lucide-react-native/icons/bookmark-x";
 import Clock3 from "lucide-react-native/icons/clock-3";
 import Download from "lucide-react-native/icons/download";
 import Trash2 from "lucide-react-native/icons/trash-2";
 import { useTranslation } from "react-i18next";
 import { SectionFrame } from "@/features/menu/SectionFrame";
+import { formatAuthors, formatEntryTime } from "@/shared/format";
 import { colors } from "@/shared/theme";
 import { useAppDialog } from "@/shared/AppDialog";
+import { EmptyState } from "@/shared/ui/EmptyState";
+import { IconButton } from "@/shared/ui/IconButton";
 import type { AppSection } from "@/types/navigation";
 import type { Paper } from "@/types/paper";
 import type {
@@ -24,6 +33,8 @@ export type LibrarySection = Extract<
   "saved" | "history" | "downloads"
 >;
 
+type LibraryItem = SavedEntry | HistoryEntry | DownloadSummary;
+
 type Props = {
   visible: boolean;
   section: LibrarySection;
@@ -39,168 +50,211 @@ type Props = {
   onBack: () => void;
 };
 
-export function LibraryScreen({
-  visible,
-  section,
-  saved,
-  history,
-  downloads,
-  onUnsave,
-  onClearHistory,
-  onOpenPaper,
-  onOpenOffline,
-  onOpenPdf,
-  onDeleteDownloads,
-  onBack,
-}: Props) {
-  const { t, i18n } = useTranslation();
-  const { showDialog } = useAppDialog();
-  const scrollRef = useRef<ScrollView>(null);
-  const offsets = useRef<Record<LibrarySection, number>>({
-    saved: 0,
-    history: 0,
-    downloads: 0,
-  });
-  const locale = i18n.language === "zh" ? "zh-CN" : "en";
-  const items =
-    section === "saved" ? saved : section === "history" ? history : downloads;
-  const emptyText =
-    section === "saved"
-      ? t("library.emptySaved")
-      : section === "history"
-        ? t("library.emptyHistory")
-        : t("library.emptyDownloads");
-  const title = t(
-    section === "saved"
-      ? "library.tabSaved"
-      : section === "history"
-        ? "library.tabHistory"
-        : "library.tabDownloads",
-  );
+const EMPTY_ICON = {
+  saved: Bookmark,
+  history: Clock3,
+  downloads: Download,
+} as const;
 
-  useEffect(() => {
-    if (!visible) return;
-    const frame = requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({
-        y: offsets.current[section],
-        animated: false,
+const keyExtractor = (item: LibraryItem) => item.arxivId;
+
+// History changes on every feed page. While this screen is hidden, nothing it
+// renders is on screen, so those updates can wait until it becomes visible.
+export const LibraryScreen = memo(
+  function LibraryScreen({
+    visible,
+    section,
+    saved,
+    history,
+    downloads,
+    onUnsave,
+    onClearHistory,
+    onOpenPaper,
+    onOpenOffline,
+    onOpenPdf,
+    onDeleteDownloads,
+    onBack,
+  }: Props) {
+    const { t, i18n } = useTranslation();
+    const { showDialog } = useAppDialog();
+    const listRef = useRef<FlatList<LibraryItem>>(null);
+    const offsets = useRef<Record<LibrarySection, number>>({
+      saved: 0,
+      history: 0,
+      downloads: 0,
+    });
+    const language = i18n.language;
+    const items: LibraryItem[] =
+      section === "saved" ? saved : section === "history" ? history : downloads;
+    const title = t(
+      section === "saved"
+        ? "library.tabSaved"
+        : section === "history"
+          ? "library.tabHistory"
+          : "library.tabDownloads",
+    );
+    const emptyText = t(
+      section === "saved"
+        ? "library.emptySaved"
+        : section === "history"
+          ? "library.emptyHistory"
+          : "library.emptyDownloads",
+    );
+
+    useEffect(() => {
+      if (!visible) return;
+      const frame = requestAnimationFrame(() => {
+        listRef.current?.scrollToOffset({
+          offset: offsets.current[section],
+          animated: false,
+        });
       });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [section, visible]);
+      return () => cancelAnimationFrame(frame);
+    }, [section, visible]);
 
-  const confirmClear = () => {
-    showDialog({
-      kind: "destructive",
-      title: t("library.clearHistoryTitle"),
-      message: t("library.clearHistoryBody"),
-      actions: [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("library.clear"),
-          style: "destructive",
-          onPress: onClearHistory,
-        },
-      ],
-    });
-  };
+    const confirmClear = () => {
+      showDialog({
+        kind: "destructive",
+        title: t("library.clearHistoryTitle"),
+        message: t("library.clearHistoryBody"),
+        actions: [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("library.clear"),
+            style: "destructive",
+            onPress: onClearHistory,
+          },
+        ],
+      });
+    };
 
-  const openDownload = (item: DownloadSummary) => {
-    if (item.offline) onOpenOffline(item.offline);
-    else if (item.pdf) onOpenPdf(item.pdf);
-  };
+    const openItem = useCallback(
+      (item: LibraryItem) => {
+        if (section !== "downloads") {
+          onOpenPaper(item);
+          return;
+        }
+        const download = item as DownloadSummary;
+        if (download.offline) onOpenOffline(download.offline);
+        else if (download.pdf) onOpenPdf(download.pdf);
+      },
+      [onOpenOffline, onOpenPaper, onOpenPdf, section],
+    );
 
-  const confirmDeleteDownload = (item: DownloadSummary) => {
-    showDialog({
-      kind: "destructive",
-      title: t("library.removeDownloads"),
-      message: t("library.removeDownloadsBody"),
-      actions: [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("library.clear"),
-          style: "destructive",
-          onPress: () => onDeleteDownloads(item.arxivId),
-        },
-      ],
-    });
-  };
+    const runItemAction = useCallback(
+      (item: LibraryItem) => {
+        if (section === "saved") {
+          onUnsave(item.arxivId);
+          return;
+        }
+        showDialog({
+          kind: "destructive",
+          title: t("library.removeDownloads"),
+          message: t("library.removeDownloadsBody"),
+          actions: [
+            { text: t("common.cancel"), style: "cancel" },
+            {
+              text: t("common.delete"),
+              style: "destructive",
+              onPress: () => onDeleteDownloads(item.arxivId),
+            },
+          ],
+        });
+      },
+      [onDeleteDownloads, onUnsave, section, showDialog, t],
+    );
 
-  return (
-    <SectionFrame visible={visible} title={title} onBackComplete={onBack}>
-      <View style={styles.root}>
-        {section === "history" ? (
-          <Pressable onPress={confirmClear} style={styles.clearRow}>
-            <Trash2 color={colors.danger} size={15} strokeWidth={1.8} />
-            <Text style={styles.clearText}>{t("library.clearHistory")}</Text>
-          </Pressable>
-        ) : null}
+    const renderItem = useCallback(
+      ({ item }: ListRenderItemInfo<LibraryItem>) => (
+        <LibraryRow
+          item={item}
+          title={item.title}
+          subtitle={formatAuthors(item.authors, 2)}
+          meta={
+            section === "downloads"
+              ? downloadMeta(
+                  item as DownloadSummary,
+                  language,
+                  t("library.readerPackage"),
+                )
+              : formatEntryTime(entryTime(item), language)
+          }
+          onPress={openItem}
+          actionLabel={
+            section === "saved"
+              ? t("library.unsave")
+              : section === "downloads"
+                ? t("library.removeDownloads")
+                : undefined
+          }
+          actionIcon={
+            section === "saved"
+              ? BookmarkX
+              : section === "downloads"
+                ? Trash2
+                : undefined
+          }
+          onAction={section === "history" ? undefined : runItemAction}
+        />
+      ),
+      [language, openItem, runItemAction, section, t],
+    );
 
-        <ScrollView
-          key={section}
-          ref={scrollRef}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          scrollEventThrottle={32}
-          onScroll={(event) => {
-            offsets.current[section] = event.nativeEvent.contentOffset.y;
-          }}
-        >
+    return (
+      <SectionFrame
+        visible={visible}
+        title={title}
+        subtitle={
+          items.length > 0
+            ? t("library.count", { count: items.length })
+            : undefined
+        }
+        headerRight={
+          section === "history" && items.length > 0 ? (
+            <IconButton
+              icon={Trash2}
+              label={t("library.clearHistory")}
+              color={colors.danger}
+              iconSize={18}
+              onPress={confirmClear}
+            />
+          ) : undefined
+        }
+        onBackComplete={onBack}
+      >
+        <View style={styles.root}>
           {items.length === 0 ? (
-            <View style={styles.emptyState}>
-              {section === "saved" ? (
-                <Bookmark color={colors.dim} size={28} strokeWidth={1.4} />
-              ) : section === "history" ? (
-                <Clock3 color={colors.dim} size={28} strokeWidth={1.4} />
-              ) : (
-                <Download color={colors.dim} size={28} strokeWidth={1.4} />
-              )}
-              <Text style={styles.empty}>{emptyText}</Text>
-            </View>
+            <EmptyState
+              icon={EMPTY_ICON[section]}
+              body={emptyText}
+              style={styles.empty}
+            />
           ) : (
-            items.map((item) => (
-              <LibraryRow
-                key={item.arxivId}
-                title={item.title}
-                subtitle={item.authors.slice(0, 2).join(", ")}
-                meta={
-                  section === "downloads"
-                    ? downloadMeta(
-                        item as DownloadSummary,
-                        locale,
-                        t("library.readerPackage"),
-                      )
-                    : formatTime(entryTime(item), locale)
-                }
-                onPress={() =>
-                  section === "downloads"
-                    ? openDownload(item as DownloadSummary)
-                    : onOpenPaper(item)
-                }
-                actionLabel={
-                  section === "saved"
-                    ? t("library.unsave")
-                    : section === "downloads"
-                      ? t("library.manage")
-                      : undefined
-                }
-                onAction={
-                  section === "saved"
-                    ? () => onUnsave(item.arxivId)
-                    : section === "downloads"
-                      ? () => confirmDeleteDownload(item as DownloadSummary)
-                      : undefined
-                }
-              />
-            ))
+            <FlatList
+              key={section}
+              ref={listRef}
+              data={items}
+              keyExtractor={keyExtractor}
+              renderItem={renderItem}
+              contentContainerStyle={styles.list}
+              showsVerticalScrollIndicator={false}
+              scrollEventThrottle={32}
+              onScroll={(event) => {
+                offsets.current[section] = event.nativeEvent.contentOffset.y;
+              }}
+              initialNumToRender={10}
+              maxToRenderPerBatch={8}
+              windowSize={7}
+            />
           )}
-        </ScrollView>
-      </View>
-    </SectionFrame>
-  );
-}
+        </View>
+      </SectionFrame>
+    );
+  },
+  (previous, next) => !previous.visible && !next.visible,
+);
 
-function entryTime(item: SavedEntry | HistoryEntry | DownloadSummary): number {
+function entryTime(item: LibraryItem): number {
   if ("savedAt" in item) return item.savedAt;
   if ("viewedAt" in item) return item.viewedAt;
   return Math.max(item.offline?.downloadedAt ?? 0, item.pdf?.downloadedAt ?? 0);
@@ -208,48 +262,22 @@ function entryTime(item: SavedEntry | HistoryEntry | DownloadSummary): number {
 
 function downloadMeta(
   item: DownloadSummary,
-  locale: string,
+  language: string,
   readerLabel: string,
 ): string {
   const kinds = [item.offline ? readerLabel : null, item.pdf ? "PDF" : null]
     .filter(Boolean)
     .join(" + ");
-  return `${kinds} · ${formatTime(entryTime(item), locale)}`;
-}
-
-function formatTime(ts: number, locale: string): string {
-  return new Date(ts).toLocaleString(locale, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return `${kinds} · ${formatEntryTime(entryTime(item), language)}`;
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  clearRow: {
-    alignSelf: "flex-end",
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 20,
-  },
-  clearText: {
-    color: colors.danger,
-    fontSize: 13,
-    fontWeight: "600",
-  },
+  empty: { flex: 1, paddingBottom: 96 },
   list: {
     paddingHorizontal: 16,
+    paddingTop: 4,
     paddingBottom: 24,
-    gap: 9,
-  },
-  emptyState: { alignItems: "center", gap: 12, marginTop: 48 },
-  empty: {
-    color: colors.dim,
-    textAlign: "center",
-    fontSize: 14,
+    gap: 8,
   },
 });

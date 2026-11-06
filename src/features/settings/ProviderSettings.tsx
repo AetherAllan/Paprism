@@ -4,7 +4,9 @@ import Check from "lucide-react-native/icons/check";
 import Pencil from "lucide-react-native/icons/pencil";
 import Plus from "lucide-react-native/icons/plus";
 import { useTranslation } from "react-i18next";
-import { colors, radii } from "@/shared/theme";
+import { colors, radii, surfaces, typography } from "@/shared/theme";
+import { Button } from "@/shared/ui/Button";
+import { IconButton } from "@/shared/ui/IconButton";
 import {
   GOOGLE_PROFILE_ID,
   OPENROUTER_BASE_URL,
@@ -65,53 +67,69 @@ export function ProviderSettings({
       <Text style={styles.hint}>{hint ?? t("provider.hint")}</Text>
       {manager.profiles
         .filter((profile) => includeGoogle || profile.id !== GOOGLE_PROFILE_ID)
-        .map((profile) => (
-          <View key={profile.id} style={styles.profileRow}>
-            <Pressable
-              style={styles.profileMain}
-              onPress={() =>
-                void onSelect(profile.id).catch((error) =>
-                  showError(t("common.operationFailed"), error),
-                )
-              }
+        .map((profile) => {
+          const active = activeProfileId === profile.id;
+          return (
+            <View
+              key={profile.id}
+              style={[
+                surfaces.card,
+                styles.profileRow,
+                active && styles.active,
+              ]}
             >
-              <View style={styles.profileTitle}>
-                {activeProfileId === profile.id ? (
-                  <Check color={colors.text} size={15} strokeWidth={2} />
-                ) : null}
-                <Text style={styles.profileName}>{profile.name}</Text>
-              </View>
-              <Text style={styles.profileModel} numberOfLines={1}>
-                {profile.model || t("provider.noModel")}
-              </Text>
-            </Pressable>
-            {profile.id !== GOOGLE_PROFILE_ID ? (
               <Pressable
-                accessibilityLabel={t("provider.edit")}
-                onPress={() => setDraft({ profile, activateAfterSave: false })}
-                hitSlop={8}
-                style={styles.iconButton}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: active }}
+                style={styles.profileMain}
+                onPress={() =>
+                  void onSelect(profile.id).catch((error) =>
+                    showError(t("common.operationFailed"), error),
+                  )
+                }
               >
-                <Pencil color={colors.muted} size={16} strokeWidth={1.8} />
+                <View style={[styles.radio, active && styles.radioActive]}>
+                  {active ? (
+                    <Check color={colors.inverse} size={12} strokeWidth={3} />
+                  ) : null}
+                </View>
+                <View style={styles.profileCopy}>
+                  <Text style={styles.profileName}>{profile.name}</Text>
+                  <Text style={styles.profileModel} numberOfLines={1}>
+                    {profile.model || t("provider.noModel")}
+                  </Text>
+                </View>
               </Pressable>
-            ) : null}
-          </View>
-        ))}
+              {profile.id !== GOOGLE_PROFILE_ID ? (
+                <IconButton
+                  icon={Pencil}
+                  iconSize={15}
+                  color={colors.muted}
+                  label={t("provider.edit")}
+                  onPress={() =>
+                    setDraft({ profile, activateAfterSave: false })
+                  }
+                  size={40}
+                />
+              ) : null}
+            </View>
+          );
+        })}
       <View style={styles.addRow}>
-        <Pressable
-          style={styles.addButton}
+        <Button
+          size="small"
+          icon={Plus}
+          label="OpenRouter"
           onPress={() => create("openrouter")}
-        >
-          <Plus color={colors.textSecondary} size={16} strokeWidth={1.8} />
-          <Text style={styles.addText}>OpenRouter</Text>
-        </Pressable>
-        <Pressable
           style={styles.addButton}
+        />
+        <Button
+          size="small"
+          icon={Plus}
+          label={t("provider.compatible")}
           onPress={() => create("openai-compatible")}
-        >
-          <Plus color={colors.textSecondary} size={16} strokeWidth={1.8} />
-          <Text style={styles.addText}>{t("provider.compatible")}</Text>
-        </Pressable>
+          style={styles.addButton}
+        />
       </View>
       <ProviderEditor
         key={draft?.profile.id ?? "closed"}
@@ -130,57 +148,54 @@ export function ProviderSettings({
 }
 
 const styles = StyleSheet.create({
-  section: { marginTop: 28 },
+  section: { marginTop: 24 },
   heading: {
-    color: colors.dim,
-    fontSize: 12,
-    fontWeight: "600",
-    marginBottom: 6,
-    marginLeft: 4,
+    ...typography.label,
+    color: colors.textSecondary,
+    marginBottom: 4,
+    marginHorizontal: 4,
   },
   hint: {
+    ...typography.caption,
     color: colors.dim,
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 10,
+    marginBottom: 12,
     marginHorizontal: 4,
   },
   profileRow: {
+    minHeight: 62,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
+    gap: 10,
+    paddingVertical: 10,
+    paddingLeft: 14,
+    paddingRight: 10,
+    marginBottom: 6,
     borderRadius: radii.medium,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    padding: 12,
-    marginBottom: 7,
   },
-  profileMain: { flex: 1 },
-  profileTitle: { flexDirection: "row", alignItems: "center", gap: 6 },
-  profileName: { color: colors.text, fontSize: 14, fontWeight: "600" },
-  profileModel: { color: colors.dim, fontSize: 12, marginTop: 3 },
-  edit: { color: colors.muted, fontSize: 14, fontWeight: "600" },
-  iconButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.small,
-    backgroundColor: colors.surfaceRaised,
-  },
-  addRow: { flexDirection: "row", gap: 8, marginTop: 6 },
-  addButton: {
+  active: { borderColor: colors.accentBorder },
+  profileMain: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 42,
     flexDirection: "row",
-    gap: 6,
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radii.medium,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    paddingVertical: 12,
+    alignItems: "center",
+    gap: 12,
+  },
+  radio: {
+    width: 20,
+    height: 20,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.surfacePressed,
   },
-  addText: { color: colors.textSecondary, fontSize: 13, fontWeight: "600" },
+  radioActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  profileCopy: { flex: 1 },
+  profileName: { ...typography.label, color: colors.text },
+  profileModel: { ...typography.caption, color: colors.dim, marginTop: 1 },
+  addRow: { flexDirection: "row", gap: 8, marginTop: 4 },
+  addButton: { flex: 1 },
 });
